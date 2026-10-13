@@ -25,7 +25,9 @@ namespace ULTRADROID.ExampleMod
     {
         private ButtonHandle buttonHandle;
 
+        private Action<Scene, LoadSceneMode> sceneLoadedCallback;
         private UnityAction<Scene, LoadSceneMode> sceneLoadedHandler;
+
         private bool initialized;
 
         public override void Load()
@@ -34,7 +36,14 @@ namespace ULTRADROID.ExampleMod
                 "[ULTRADROID Example] Loaded; waiting for scene load."
             );
 
-            sceneLoadedHandler = OnSceneLoaded;
+            sceneLoadedCallback = OnSceneLoaded;
+
+            sceneLoadedHandler =
+                Il2CppInterop.Runtime.DelegateSupport
+                    .ConvertDelegate<UnityAction<Scene, LoadSceneMode>>(
+                        sceneLoadedCallback
+                    );
+
             SceneManager.sceneLoaded += sceneLoadedHandler;
         }
 
@@ -44,6 +53,7 @@ namespace ULTRADROID.ExampleMod
                 return;
 
             initialized = true;
+
             SceneManager.sceneLoaded -= sceneLoadedHandler;
 
             Log.LogInfo(
