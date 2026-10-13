@@ -57,5 +57,11 @@
       <HintPath>../../lib/UnityEngine.TextRenderingModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+
+    <!-- Required for ImageConversion.LoadImage(...) -->
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>../../lib/UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 </Project>
