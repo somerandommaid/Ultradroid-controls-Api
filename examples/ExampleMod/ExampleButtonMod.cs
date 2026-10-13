@@ -7,6 +7,7 @@ using BepInEx.Unity.IL2CPP;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using ULTRADROID.API;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace ULTRADROID.ExampleMod
 {
@@ -22,10 +23,34 @@ namespace ULTRADROID.ExampleMod
     public sealed class ExampleButtonMod : BasePlugin
     {
         private ButtonHandle buttonHandle;
+        private bool initialized;
 
         public override void Load()
         {
+            Log.LogInfo(
+                "[ULTRADROID Example] Loaded; waiting for scene load."
+            );
+
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (initialized)
+                return;
+
+            initialized = true;
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+
+            Log.LogInfo(
+                "[ULTRADROID Example] Scene loaded: " + scene.name
+            );
+
             Sprite icon = LoadIcon("ultradroid-demo-icon.png");
+
+            Log.LogInfo(
+                "[ULTRADROID Example] Registering button."
+            );
 
             buttonHandle = ULTRADROIDControls.AddButton(
                 new ButtonConfig
@@ -53,32 +78,50 @@ namespace ULTRADROID.ExampleMod
 
         private Sprite LoadIcon(string fileName)
         {
-            string assemblyPath =
-                typeof(ExampleButtonMod).Assembly.Location;
-
-            string folder = Path.GetDirectoryName(assemblyPath);
-
-            if (string.IsNullOrEmpty(folder))
-            {
-                folder = Path.Combine(Paths.PluginPath, "ULTRADROID");
-            }
-
-            string iconPath = Path.Combine(folder, fileName);
-
-            if (!File.Exists(iconPath))
-            {
-                Log.LogWarning(
-                    "[ULTRADROID Example] Icon not found: " + iconPath
-                );
-
-                return null;
-            }
-
             Texture2D texture = null;
 
             try
             {
+                string assemblyPath =
+                    typeof(ExampleButtonMod).Assembly.Location;
+
+                string folder = Path.GetDirectoryName(assemblyPath);
+
+                if (string.IsNullOrEmpty(folder))
+                    folder = Path.Combine(Paths.PluginPath, "ULTRADROID");
+
+                string iconPath = Path.Combine(folder, fileName);
+
+                Log.LogInfo(
+                    "[ULTRADROID Example] Looking for icon: " + iconPath
+                );
+
+                if (!File.Exists(iconPath))
+                {
+                    Log.LogWarning(
+                        "[ULTRADROID Example] Icon not found; "
+                        + "using text-only button."
+                    );
+
+                    return null;
+                }
+
                 byte[] pngData = File.ReadAllBytes(iconPath);
+
+                Log.LogInfo(
+                    "[ULTRADROID Example] PNG read; bytes: "
+                    + pngData.Length
+                );
+
+                if (pngData.Length == 0)
+                {
+                    Log.LogWarning("[ULTRADROID Example] PNG is empty.");
+                    return null;
+                }
+
+                Log.LogInfo(
+                    "[ULTRADROID Example] Creating Texture2D."
+                );
 
                 texture = new Texture2D(
                     2,
@@ -87,14 +130,20 @@ namespace ULTRADROID.ExampleMod
                     false
                 );
 
-                // Convert the normal C# byte array into an IL2CPP array.
+                Log.LogInfo(
+                    "[ULTRADROID Example] Texture2D created; "
+                    + "converting PNG data."
+                );
+
                 var il2cppData =
                     new Il2CppStructArray<byte>(pngData.Length);
 
                 for (int i = 0; i < pngData.Length; i++)
-                {
                     il2cppData[i] = pngData[i];
-                }
+
+                Log.LogInfo(
+                    "[ULTRADROID Example] Calling ImageConversion.LoadImage."
+                );
 
                 bool loaded = ImageConversion.LoadImage(
                     texture,
@@ -102,13 +151,16 @@ namespace ULTRADROID.ExampleMod
                     false
                 );
 
+                Log.LogInfo(
+                    "[ULTRADROID Example] LoadImage returned: " + loaded
+                );
+
                 if (!loaded)
                 {
                     Log.LogWarning(
-                        "[ULTRADROID Example] Failed to decode PNG."
+                        "[ULTRADROID Example] PNG decoding failed."
                     );
 
-                    UnityEngine.Object.Destroy(texture);
                     return null;
                 }
 
@@ -116,14 +168,13 @@ namespace ULTRADROID.ExampleMod
                 texture.wrapMode = TextureWrapMode.Clamp;
                 texture.filterMode = FilterMode.Bilinear;
 
+                Log.LogInfo(
+                    "[ULTRADROID Example] Creating Sprite."
+                );
+
                 Sprite sprite = Sprite.Create(
                     texture,
-                    new Rect(
-                        0f,
-                        0f,
-                        texture.width,
-                        texture.height
-                    ),
+                    new Rect(0f, 0f, texture.width, texture.height),
                     new Vector2(0.5f, 0.5f),
                     100f
                 );
@@ -131,22 +182,15 @@ namespace ULTRADROID.ExampleMod
                 sprite.name = "ULTRADROID_DemoIcon";
 
                 Log.LogInfo(
-                    "[ULTRADROID Example] Custom icon loaded: "
-                    + iconPath
+                    "[ULTRADROID Example] Sprite created successfully."
                 );
 
                 return sprite;
             }
             catch (Exception ex)
             {
-                if (texture != null)
-                {
-                    UnityEngine.Object.Destroy(texture);
-                }
-
-                Log.LogWarning(
-                    "[ULTRADROID Example] Icon loading failed: "
-                    + ex
+                Log.LogError(
+                    "[ULTRADROID Example] Icon loading failed: " + ex
                 );
 
                 return null;
