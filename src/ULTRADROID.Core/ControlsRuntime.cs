@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using BepInEx;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Il2CppInterop.Runtime.Injection;
 using Il2CppInterop.Runtime.Attributes;
 using ULTRADROID.API;
@@ -21,6 +23,13 @@ namespace ULTRADROID.Core
         private TouchManager activeManager;
         private readonly Dictionary<string, RuntimeButton> activeButtons = new Dictionary<string, RuntimeButton>(StringComparer.Ordinal);
         private string lastReportedError = string.Empty;
+
+        // Retain the fallback Unity objects in the Core assembly. The log showed
+        // the Example plugin's Sprite wrapper was CLR-non-null but Unity-null by
+        // the time the Core read ButtonConfig.Icon, so reload the known demo PNG
+        // here as a safe fallback.
+        private static Sprite fallbackDemoIcon;
+        private static Texture2D fallbackDemoTexture;
 
         public ControlsRuntime(IntPtr ptr) : base(ptr) { }
 
@@ -153,11 +162,14 @@ namespace ULTRADROID.Core
 
             try
             {
-                control.controlPathInternal = registration.Config.ControlPath;
+                // Custom action buttons must not inherit the source button's
+                // weapon-fire input. Their behaviour is handled by BindClick().
+                control.controlPathInternal = string.Empty;
+                Debug.Log("[ULTRADROID] Cleared inherited input path for " + registration.Config.Id);
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[ULTRADROID] Couldn't set the control path for " + registration.Config.Id + ": " + ex.Message);
+                Debug.LogWarning("[ULTRADROID] Couldn't clear inherited input path for " + registration.Config.Id + ": " + ex.Message);
             }
 
             RectTransform rect = clone.GetComponent<RectTransform>();
@@ -202,6 +214,17 @@ namespace ULTRADROID.Core
                 "[ULTRADROID] ApplyVisuals for " + config.Id +
                 " | CLR icon null=" + ReferenceEquals(icon, null) +
                 " | Unity icon null=" + (icon == null));
+
+            // If a plugin-provided IL2CPP Sprite wrapper arrives invalid, load
+            // the example PNG from disk inside this runtime and retain it here.
+            if (icon == null)
+            {
+                icon = LoadFallbackIcon(config.Id);
+                if (icon != null)
+                {
+                    Debug.Log("[ULTRADROID] Using Core-loaded fallback icon for " + config.Id);
+                }
+            }
 
             if (config.ApplyTint)
             {
@@ -250,6 +273,75 @@ namespace ULTRADROID.Core
                 Text[] labels = clone.GetComponentsInChildren<Text>(true);
                 if (labels != null && labels.Length > 0 && labels[0] != null)
                     labels[0].text = config.Label;
+            }
+        }
+
+        [HideFromIl2Cpp]
+        private Sprite LoadFallbackIcon(string id)
+        {
+            // This fallback is for the supplied example mod only. Other plugins
+            // should pass a valid ButtonConfig.Icon or expose their own icon path.
+            if (!string.Equals(id, "ULTRADROID.Example.Demo", StringComparison.Ordinal))
+                return null;
+
+            if (fallbackDemoIcon != null)
+                return fallbackDemoIcon;
+
+            string path = Path.Combine(Paths.PluginPath, "ultradroid-demo-icon.png");
+            try
+            {
+                if (!File.Exists(path))
+                {
+                    Debug.LogWarning("[ULTRADROID] Fallback icon file not found: " + path);
+                    return null;
+                }
+
+                byte[] bytes = File.ReadAllBytes(path);
+                if (bytes == null || bytes.Length == 0)
+                {
+                    Debug.LogWarning("[ULTRADROID] Fallback icon file is empty: " + path);
+                    return null;
+                }
+
+                Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                bool loaded = ImageConversion.LoadImage(
+                    texture,
+                    new Il2CppStructArray<byte>(bytes),
+                    false);
+
+                if (!loaded)
+                {
+                    Debug.LogWarning("[ULTRADROID] Core fallback couldn't decode PNG: " + path);
+                    UnityEngine.Object.Destroy(texture);
+                    return null;
+                }
+
+                Sprite sprite = Sprite.Create(
+                    texture,
+                    new Rect(0f, 0f, texture.width, texture.height),
+                    new Vector2(0.5f, 0.5f),
+                    100f);
+
+                if (sprite == null)
+                {
+                    Debug.LogWarning("[ULTRADROID] Core fallback couldn't create Sprite: " + path);
+                    UnityEngine.Object.Destroy(texture);
+                    return null;
+                }
+
+                // Do not Destroy these objects: the Image uses this Sprite.
+                fallbackDemoTexture = texture;
+                fallbackDemoIcon = sprite;
+
+                Debug.Log(
+                    "[ULTRADROID] Core loaded fallback PNG " + texture.width + "x" +
+                    texture.height + " from " + path);
+                return fallbackDemoIcon;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[ULTRADROID] Core fallback icon load failed: " + ex);
+                return null;
             }
         }
 
