@@ -1,0 +1,7 @@
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+# Reference DLLs are not bundled in this source starter.
+lib/*.dll
