@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using BepInEx;
 using Il2CppInterop.Runtime.Injection;
+using Il2CppInterop.Runtime.Attributes;
 using ULTRADROID.API;
 using UnityEngine;
 using UnityEngine.Events;
@@ -111,6 +112,7 @@ namespace ULTRADROID.Core
             }
         }
 
+        [HideFromIl2Cpp]
         private RuntimeButton CreateButton(TouchManager manager, ButtonRegistration registration)
         {
             OnScreenButton source = manager.buttons[0];
@@ -180,6 +182,7 @@ namespace ULTRADROID.Core
             return runtimeButton;
         }
 
+        [HideFromIl2Cpp]
         private void ApplyVisuals(GameObject clone, ButtonConfig config)
         {
             if (config.ApplyTint)
@@ -214,6 +217,7 @@ namespace ULTRADROID.Core
             }
         }
 
+        [HideFromIl2Cpp]
         private void BindClick(GameObject clone, ButtonRegistration registration)
         {
             Button[] buttons = clone.GetComponentsInChildren<Button>(true);
@@ -270,6 +274,7 @@ namespace ULTRADROID.Core
             }
         }
 
+        [HideFromIl2Cpp]
         private void MaintainScale(TouchManager manager, RuntimeButton runtimeButton)
         {
             if (manager == null || runtimeButton == null || runtimeButton.Control == null ||
@@ -287,6 +292,7 @@ namespace ULTRADROID.Core
                 target.localScale = targetScale;
         }
 
+        [HideFromIl2Cpp]
         private void RegisterBaseScale(TouchManager manager, RuntimeButton runtimeButton)
         {
             if (manager == null || runtimeButton == null || runtimeButton.Control == null ||
