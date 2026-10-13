@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using BepInEx;
 using Il2CppInterop.Runtime;
-using Il2CppInterop.Runtime.Injection;
 using Il2CppInterop.Runtime.Attributes;
 using ULTRADROID.API;
 using UnityEngine;
@@ -173,7 +172,10 @@ namespace ULTRADROID.Core
                 return null;
             }
 
-            // Prevent the cloned native button from sending its original input.
+            // Disable the cloned native input component.
+            // The Unity UI Button remains responsible for the custom callback.
+            control.enabled = false;
+
             try
             {
                 control.controlPathInternal = "";
@@ -235,59 +237,46 @@ namespace ULTRADROID.Core
 
             if (config.Icon != null)
             {
-                Transform existingIcon =
-                    clone.transform.Find("ULTRADROID_CustomIcon");
+                Image[] images =
+                    clone.GetComponentsInChildren<Image>(true);
 
-                GameObject iconObject;
+                Image targetImage = null;
 
-                if (existingIcon != null)
+                // Prefer the deepest Image with a sprite.
+                for (int i = images.Length - 1; i >= 0; i--)
                 {
-                    iconObject = existingIcon.gameObject;
-                }
-                else
-                {
-                    // CanvasRenderer is omitted because it is unavailable
-                    // in this project's current build references.
-                    iconObject = new GameObject(
-                        "ULTRADROID_CustomIcon",
-                        Il2CppType.Of<RectTransform>(),
-                        Il2CppType.Of<Image>());
-
-                    iconObject.transform.SetParent(clone.transform, false);
+                    if (images[i] != null && images[i].sprite != null)
+                    {
+                        targetImage = images[i];
+                        break;
+                    }
                 }
 
-                RectTransform iconRect =
-                    iconObject.GetComponent<RectTransform>();
+                // Fall back to the first Image if none has a sprite.
+                if (targetImage == null && images.Length > 0)
+                    targetImage = images[0];
 
-                if (iconRect != null)
+                if (targetImage != null)
                 {
-                    iconRect.anchorMin = new Vector2(0.2f, 0.2f);
-                    iconRect.anchorMax = new Vector2(0.8f, 0.8f);
-                    iconRect.offsetMin = Vector2.zero;
-                    iconRect.offsetMax = Vector2.zero;
-                    iconRect.localScale = Vector3.one;
-                    iconRect.localRotation = Quaternion.identity;
-                    iconRect.SetAsLastSibling();
-                }
-
-                Image iconImage = iconObject.GetComponent<Image>();
-
-                if (iconImage != null)
-                {
-                    iconImage.sprite = config.Icon;
-                    iconImage.preserveAspect = true;
-                    iconImage.raycastTarget = false;
-                    iconImage.color = Color.white;
-                    iconImage.enabled = true;
-                    iconObject.SetActive(true);
-
                     Debug.Log(
-                        "[ULTRADROID] Icon assigned to " + config.Id);
+                        "[ULTRADROID] Replacing image on " +
+                        targetImage.gameObject.name +
+                        "; previous sprite: " +
+                        (targetImage.sprite != null
+                            ? targetImage.sprite.name
+                            : "none"));
+
+                    targetImage.sprite = config.Icon;
+                    targetImage.preserveAspect = true;
+                    targetImage.color = Color.white;
+                    targetImage.enabled = true;
+                    targetImage.gameObject.SetActive(true);
+                    targetImage.raycastTarget = false;
                 }
                 else
                 {
                     Debug.LogError(
-                        "[ULTRADROID] Icon Image component missing for " +
+                        "[ULTRADROID] No existing Image found on button " +
                         config.Id);
                 }
             }
