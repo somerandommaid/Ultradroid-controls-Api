@@ -1,4 +1,3 @@
-
 using System;
 using System.IO;
 using BepInEx;
@@ -28,6 +27,10 @@ namespace ULTRADROID.ExampleMod
         private UnityAction<Scene, LoadSceneMode> sceneLoadedHandler;
 
         private bool buttonRegistered;
+
+        // Keep both Unity objects alive for the lifetime of this plugin.
+        private static Sprite keptIcon;
+        private static Texture2D keptTexture;
 
         public override void Load()
         {
@@ -79,6 +82,28 @@ namespace ULTRADROID.ExampleMod
                 (icon != null)
             );
 
+            if (icon == null)
+            {
+                Log.LogError(
+                    "[ULTRADROID Example] Icon is null; " +
+                    "the button will be registered without an icon."
+                );
+            }
+
+            // Explicitly retain the sprite and use the retained reference.
+            keptIcon = icon;
+            icon = keptIcon;
+
+            Log.LogInfo(
+                "[ULTRADROID Example] Retained icon CLR-null: " +
+                ReferenceEquals(keptIcon, null)
+            );
+
+            Log.LogInfo(
+                "[ULTRADROID Example] Retained icon Unity-null: " +
+                (keptIcon == null)
+            );
+
             Log.LogInfo(
                 "[ULTRADROID Example] Registering button."
             );
@@ -88,7 +113,7 @@ namespace ULTRADROID.ExampleMod
                 {
                     Id = "ULTRADROID.Example.Demo",
                     Label = "DEMO",
-                    Icon = icon,
+                    Icon = keptIcon,
                     PositionOffset = new Vector2(120f, 90f),
                     ApplyTint = false,
                     ScaleMultiplier = 1f,
@@ -104,6 +129,12 @@ namespace ULTRADROID.ExampleMod
             Log.LogInfo(
                 "[ULTRADROID Example] Button registered: " +
                 buttonHandle.Id
+            );
+
+            Log.LogInfo(
+                "[ULTRADROID Example] Icon after registration; " +
+                "CLR-null: " + ReferenceEquals(keptIcon, null) +
+                ", Unity-null: " + (keptIcon == null)
             );
         }
 
@@ -225,11 +256,21 @@ namespace ULTRADROID.ExampleMod
                     return null;
                 }
 
+                // Retain the texture as well as its sprite.
+                keptTexture = texture;
+                keptIcon = sprite;
+
                 Log.LogInfo(
                     "[ULTRADROID Example] Icon sprite created."
                 );
 
-                return sprite;
+                Log.LogInfo(
+                    "[ULTRADROID Example] Sprite retained; " +
+                    "CLR-null: " + ReferenceEquals(keptIcon, null) +
+                    ", Unity-null: " + (keptIcon == null)
+                );
+
+                return keptIcon;
             }
             catch (Exception ex)
             {
