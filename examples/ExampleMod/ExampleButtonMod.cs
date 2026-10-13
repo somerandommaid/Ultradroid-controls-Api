@@ -1,14 +1,13 @@
-
 using System;
 using System.IO;
-
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using ULTRADROID.API;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.SceneManagement;
+using UnityEngine.Events;
+using UnityEngine.UI;
 
 namespace ULTRADROID.ExampleMod
 {
@@ -28,7 +27,7 @@ namespace ULTRADROID.ExampleMod
         private Action<Scene, LoadSceneMode> sceneLoadedCallback;
         private UnityAction<Scene, LoadSceneMode> sceneLoadedHandler;
 
-        private bool initialized;
+        private bool buttonRegistered;
 
         public override void Load()
         {
@@ -49,22 +48,40 @@ namespace ULTRADROID.ExampleMod
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (initialized)
-                return;
-
-            initialized = true;
-
-            SceneManager.sceneLoaded -= sceneLoadedHandler;
-
             Log.LogInfo(
                 "[ULTRADROID Example] Scene loaded: " + scene.name
             );
 
-            Sprite icon = LoadIcon("ultradroid-demo-icon.png");
+            if (scene.name == "Bootstrap" ||
+                scene.name == "Intro")
+            {
+                Log.LogInfo(
+                    "[ULTRADROID Example] Skipping startup scene."
+                );
+                return;
+            }
+
+            if (buttonRegistered)
+                return;
+
+            buttonRegistered = true;
+
+            SceneManager.sceneLoaded -= sceneLoadedHandler;
 
             Log.LogInfo(
-                "[ULTRADROID Example] Registering button."
+                "[ULTRADROID Example] Loading icon in scene: " +
+                scene.name
             );
+
+            Sprite icon = LoadIcon("ultradroid-demo-icon.png");
+
+            if (icon == null)
+            {
+                Log.LogWarning(
+                    "[ULTRADROID Example] Icon unavailable; " +
+                    "registering button without an icon."
+                );
+            }
 
             buttonHandle = ULTRADROIDControls.AddButton(
                 new ButtonConfig
@@ -72,129 +89,132 @@ namespace ULTRADROID.ExampleMod
                     Id = "ULTRADROID.Example.Demo",
                     Label = "DEMO",
                     Icon = icon,
-
                     PositionOffset = new Vector2(120f, 90f),
                     ApplyTint = false,
                     ScaleMultiplier = 1f,
-
                     OnClick = () =>
+                    {
                         Log.LogInfo(
                             "[ULTRADROID Example] Demo button clicked."
-                        )
+                        );
+                    }
                 }
             );
 
             Log.LogInfo(
-                "[ULTRADROID Example] Registered button ID: "
-                + buttonHandle.Id
+                "[ULTRADROID Example] Registered button ID: " +
+                buttonHandle.Id
             );
         }
 
         private Sprite LoadIcon(string fileName)
         {
-            Texture2D texture = null;
+            string path = Path.Combine(
+                Paths.PluginPath,
+                fileName
+            );
+
+            Log.LogInfo(
+                "[ULTRADROID Example] Looking for icon: " + path
+            );
 
             try
             {
-                string assemblyPath =
-                    typeof(ExampleButtonMod).Assembly.Location;
-
-                string folder = Path.GetDirectoryName(assemblyPath);
-
-                if (string.IsNullOrEmpty(folder))
-                    folder = Path.Combine(Paths.PluginPath, "ULTRADROID");
-
-                string iconPath = Path.Combine(folder, fileName);
-
-                Log.LogInfo(
-                    "[ULTRADROID Example] Looking for icon: " + iconPath
-                );
-
-                if (!File.Exists(iconPath))
+                if (!File.Exists(path))
                 {
                     Log.LogWarning(
-                        "[ULTRADROID Example] Icon not found; "
-                        + "using text-only button."
+                        "[ULTRADROID Example] Icon file not found."
                     );
-
                     return null;
                 }
 
-                byte[] pngData = File.ReadAllBytes(iconPath);
+                byte[] fileBytes = File.ReadAllBytes(path);
 
                 Log.LogInfo(
-                    "[ULTRADROID Example] PNG read; bytes: "
-                    + pngData.Length
+                    "[ULTRADROID Example] PNG read; bytes: " +
+                    fileBytes.Length
                 );
-
-                if (pngData.Length == 0)
-                {
-                    Log.LogWarning(
-                        "[ULTRADROID Example] PNG is empty."
-                    );
-
-                    return null;
-                }
 
                 Log.LogInfo(
                     "[ULTRADROID Example] Creating Texture2D."
                 );
 
-                texture = new Texture2D(
+                Texture2D texture = new Texture2D(
                     2,
                     2,
                     TextureFormat.RGBA32,
                     false
                 );
 
-                var il2cppData =
-                    new Il2CppStructArray<byte>(pngData.Length);
-
-                for (int i = 0; i < pngData.Length; i++)
-                    il2cppData[i] = pngData[i];
-
-                Log.LogInfo(
-                    "[ULTRADROID Example] Calling ImageConversion.LoadImage."
-                );
-
-                bool loaded = ImageConversion.LoadImage(
-                    texture,
-                    il2cppData,
-                    false
-                );
-
-                Log.LogInfo(
-                    "[ULTRADROID Example] LoadImage returned: " + loaded
-                );
-
-                if (!loaded)
+                if (texture == null)
                 {
-                    Log.LogWarning(
-                        "[ULTRADROID Example] PNG decoding failed."
+                    Log.LogError(
+                        "[ULTRADROID Example] Texture2D creation failed."
                     );
-
                     return null;
                 }
 
-                texture.name = "ULTRADROID_DemoIcon";
-                texture.wrapMode = TextureWrapMode.Clamp;
-                texture.filterMode = FilterMode.Bilinear;
+                Log.LogInfo(
+                    "[ULTRADROID Example] Texture2D created."
+                );
+
+                Il2CppStructArray<byte> il2CppBytes =
+                    new Il2CppStructArray<byte>(fileBytes.Length);
+
+                for (int i = 0; i < fileBytes.Length; i++)
+                {
+                    il2CppBytes[i] = fileBytes[i];
+                }
 
                 Log.LogInfo(
-                    "[ULTRADROID Example] Creating Sprite."
+                    "[ULTRADROID Example] Loading PNG data."
+                );
+
+                bool loaded =
+                    ImageConversion.LoadImage(
+                        texture,
+                        il2CppBytes,
+                        false
+                    );
+
+                if (!loaded)
+                {
+                    Log.LogError(
+                        "[ULTRADROID Example] PNG decoding failed."
+                    );
+
+                    UnityEngine.Object.Destroy(texture);
+                    return null;
+                }
+
+                Log.LogInfo(
+                    "[ULTRADROID Example] PNG decoded."
                 );
 
                 Sprite sprite = Sprite.Create(
                     texture,
-                    new Rect(0f, 0f, texture.width, texture.height),
+                    new Rect(
+                        0f,
+                        0f,
+                        texture.width,
+                        texture.height
+                    ),
                     new Vector2(0.5f, 0.5f),
                     100f
                 );
 
-                sprite.name = "ULTRADROID_DemoIcon";
+                if (sprite == null)
+                {
+                    Log.LogError(
+                        "[ULTRADROID Example] Sprite creation failed."
+                    );
+
+                    UnityEngine.Object.Destroy(texture);
+                    return null;
+                }
 
                 Log.LogInfo(
-                    "[ULTRADROID Example] Sprite created successfully."
+                    "[ULTRADROID Example] Icon sprite created."
                 );
 
                 return sprite;
@@ -202,7 +222,8 @@ namespace ULTRADROID.ExampleMod
             catch (Exception ex)
             {
                 Log.LogError(
-                    "[ULTRADROID Example] Icon loading failed: " + ex
+                    "[ULTRADROID Example] Icon loading exception: " +
+                    ex
                 );
 
                 return null;
