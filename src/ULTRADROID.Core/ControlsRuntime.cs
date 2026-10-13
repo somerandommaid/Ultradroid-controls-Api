@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections.Generic;
 using BepInEx;
@@ -12,10 +13,6 @@ using UnityEngine.UI;
 
 namespace ULTRADROID.Core
 {
-    /// <summary>
-    /// Bridges the public API to TouchManager and the layout editor.
-    /// Clones a native OnScreenButton and registers it with TouchManager.
-    /// </summary>
     public sealed class ControlsRuntime : MonoBehaviour
     {
         private TouchManager activeManager;
@@ -178,13 +175,13 @@ namespace ULTRADROID.Core
 
             try
             {
-                control.controlPathInternal =
-                    registration.Config.ControlPath;
+                // Callback-only custom buttons should not send native input.
+                control.controlPathInternal = "";
             }
             catch (Exception ex)
             {
                 Debug.LogWarning(
-                    "[ULTRADROID] Couldn't set control path for " +
+                    "[ULTRADROID] Couldn't clear control path for " +
                     registration.Config.Id + ": " + ex.Message);
             }
 
@@ -236,7 +233,6 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // Keep the native button background and create a separate icon.
             if (config.Icon != null)
             {
                 Transform existingIcon =
@@ -253,6 +249,7 @@ namespace ULTRADROID.Core
                     iconObject = new GameObject(
                         "ULTRADROID_CustomIcon",
                         Il2CppType.Of<RectTransform>(),
+                        Il2CppType.Of<CanvasRenderer>(),
                         Il2CppType.Of<Image>());
 
                     iconObject.transform.SetParent(clone.transform, false);
@@ -280,6 +277,8 @@ namespace ULTRADROID.Core
                     iconImage.preserveAspect = true;
                     iconImage.raycastTarget = false;
                     iconImage.color = Color.white;
+                    iconImage.enabled = true;
+                    iconObject.SetActive(true);
 
                     Debug.Log(
                         "[ULTRADROID] Icon assigned to " + config.Id);
