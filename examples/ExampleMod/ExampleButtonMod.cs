@@ -163,19 +163,10 @@ namespace ULTRADROID.ExampleMod
                 );
 
                 Il2CppStructArray<byte> il2CppBytes =
-                    new Il2CppStructArray<byte>(fileBytes.Length);
+                    new Il2CppStructArray<byte>(fileBytes);
 
                 Log.LogInfo(
-                    "[ULTRADROID Example] Copying PNG bytes."
-                );
-
-                for (int i = 0; i < fileBytes.Length; i++)
-                {
-                    il2CppBytes[i] = fileBytes[i];
-                }
-
-                Log.LogInfo(
-                    "[ULTRADROID Example] PNG bytes copied."
+                    "[ULTRADROID Example] IL2CPP byte array created."
                 );
 
                 Log.LogInfo(
