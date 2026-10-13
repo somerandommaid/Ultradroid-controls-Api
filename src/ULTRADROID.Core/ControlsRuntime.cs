@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BepInEx;
+using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Injection;
 using Il2CppInterop.Runtime.Attributes;
 using ULTRADROID.API;
@@ -19,6 +20,7 @@ namespace ULTRADROID.Core
     public sealed class ControlsRuntime : MonoBehaviour
     {
         private TouchManager activeManager;
+
         private readonly Dictionary<string, RuntimeButton> activeButtons =
             new Dictionary<string, RuntimeButton>(StringComparer.Ordinal);
 
@@ -225,7 +227,6 @@ namespace ULTRADROID.Core
         [HideFromIl2Cpp]
         private void ApplyVisuals(GameObject clone, ButtonConfig config)
         {
-            // Tint only the native button graphics.
             if (config.ApplyTint)
             {
                 Graphic[] graphics =
@@ -238,7 +239,7 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // Add a separate icon Image so the native background is preserved.
+            // Create a separate icon overlay; preserve the native background.
             if (config.Icon != null)
             {
                 Transform existingIcon =
@@ -254,9 +255,9 @@ namespace ULTRADROID.Core
                 {
                     iconObject = new GameObject(
                         "ULTRADROID_CustomIcon",
-                        typeof(RectTransform),
-                        typeof(CanvasRenderer),
-                        typeof(Image));
+                        Il2CppType.Of<RectTransform>(),
+                        Il2CppType.Of<CanvasRenderer>(),
+                        Il2CppType.Of<Image>());
 
                     iconObject.transform.SetParent(clone.transform, false);
                 }
@@ -264,25 +265,35 @@ namespace ULTRADROID.Core
                 RectTransform iconRect =
                     iconObject.GetComponent<RectTransform>();
 
-                iconRect.anchorMin = new Vector2(0.2f, 0.2f);
-                iconRect.anchorMax = new Vector2(0.8f, 0.8f);
-                iconRect.offsetMin = Vector2.zero;
-                iconRect.offsetMax = Vector2.zero;
-                iconRect.localScale = Vector3.one;
-                iconRect.localRotation = Quaternion.identity;
+                if (iconRect != null)
+                {
+                    iconRect.anchorMin = new Vector2(0.2f, 0.2f);
+                    iconRect.anchorMax = new Vector2(0.8f, 0.8f);
+                    iconRect.offsetMin = Vector2.zero;
+                    iconRect.offsetMax = Vector2.zero;
+                    iconRect.localScale = Vector3.one;
+                    iconRect.localRotation = Quaternion.identity;
+                    iconRect.SetAsLastSibling();
+                }
 
                 Image iconImage = iconObject.GetComponent<Image>();
 
-                iconImage.sprite = config.Icon;
-                iconImage.preserveAspect = true;
-                iconImage.raycastTarget = false;
-                iconImage.color = Color.white;
+                if (iconImage != null)
+                {
+                    iconImage.sprite = config.Icon;
+                    iconImage.preserveAspect = true;
+                    iconImage.raycastTarget = false;
+                    iconImage.color = Color.white;
 
-                // Draw the icon above the cloned button's existing graphics.
-                iconRect.SetAsLastSibling();
-
-                Debug.Log(
-                    "[ULTRADROID] Added separate icon to " + config.Id);
+                    Debug.Log(
+                        "[ULTRADROID] Icon assigned to " + config.Id);
+                }
+                else
+                {
+                    Debug.LogError(
+                        "[ULTRADROID] Icon Image component missing for " +
+                        config.Id);
+                }
             }
 
             if (!string.IsNullOrEmpty(config.Label))
