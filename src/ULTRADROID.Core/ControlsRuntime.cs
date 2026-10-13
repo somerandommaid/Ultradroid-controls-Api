@@ -247,7 +247,7 @@ namespace ULTRADROID.Core
                     }
                 };
 
-                UnityAction unityAction = DelegateSupport.ConvertDelegate<UnityAction>(click);
+                UnityAction unityAction = Il2CppInterop.Runtime.DelegateSupport.ConvertDelegate<UnityAction>(click);
                 buttons[i].onClick.AddListener(unityAction);
             }
         }
