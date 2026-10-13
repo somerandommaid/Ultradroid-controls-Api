@@ -1,19 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>disable</ImplicitUsings>
-    <Nullable>disable</Nullable>
-    <LangVersion>latest</LangVersion>
-    <AssemblyName>ULTRADROID.ExampleMod</AssemblyName>
-    <RootNamespace>ULTRADROID.ExampleMod</RootNamespace>
-  </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="../../src/ULTRADROID.API/ULTRADROID.API.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="BepInEx.Core"><HintPath>../../lib/BepInEx.Core.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="BepInEx.Unity.IL2CPP"><HintPath>../../lib/BepInEx.Unity.IL2CPP.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Il2CppInterop.Runtime"><HintPath>../../lib/Il2CppInterop.Runtime.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.CoreModule"><HintPath>../../lib/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
-  </ItemGroup>
-</Project>
+
+<Reference Include="Il2Cppmscorlib">
+  <HintPath>../../lib/Il2Cppmscorlib.dll</HintPath>
+  <Private>false</Private>
+</Reference>
+
+<Reference Include="UnityEngine.ImageConversionModule">
+  <HintPath>../../lib/UnityEngine.ImageConversionModule.dll</HintPath>
+  <Private>false</Private>
+</Reference>
