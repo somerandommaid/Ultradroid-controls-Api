@@ -173,9 +173,9 @@ namespace ULTRADROID.Core
                 return null;
             }
 
+            // Prevent the cloned native button from sending its original input.
             try
             {
-                // Callback-only custom buttons should not send native input.
                 control.controlPathInternal = "";
             }
             catch (Exception ex)
@@ -246,10 +246,11 @@ namespace ULTRADROID.Core
                 }
                 else
                 {
+                    // CanvasRenderer is omitted because it is unavailable
+                    // in this project's current build references.
                     iconObject = new GameObject(
                         "ULTRADROID_CustomIcon",
                         Il2CppType.Of<RectTransform>(),
-                        Il2CppType.Of<CanvasRenderer>(),
                         Il2CppType.Of<Image>());
 
                     iconObject.transform.SetParent(clone.transform, false);
