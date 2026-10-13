@@ -12,6 +12,10 @@ using UnityEngine.UI;
 
 namespace ULTRADROID.Core
 {
+    /// <summary>
+    /// Bridges the public API to TouchManager and the layout editor.
+    /// Clones a native OnScreenButton and registers it with TouchManager.
+    /// </summary>
     public sealed class ControlsRuntime : MonoBehaviour
     {
         private TouchManager activeManager;
@@ -220,11 +224,6 @@ namespace ULTRADROID.Core
         [HideFromIl2Cpp]
         private void ApplyVisuals(GameObject clone, ButtonConfig config)
         {
-            Debug.LogError(
-                "[ULTRADROID DEBUG] ApplyVisuals: ID=" + config.Id +
-                ", Icon=" +
-                (config.Icon == null ? "NULL" : config.Icon.name));
-
             if (config.ApplyTint)
             {
                 Graphic[] graphics =
@@ -237,6 +236,7 @@ namespace ULTRADROID.Core
                 }
             }
 
+            // Keep the native button background and create a separate icon.
             if (config.Icon != null)
             {
                 Transform existingIcon =
@@ -280,34 +280,16 @@ namespace ULTRADROID.Core
                     iconImage.preserveAspect = true;
                     iconImage.raycastTarget = false;
                     iconImage.color = Color.white;
-                    iconImage.enabled = true;
 
-                    iconObject.SetActive(true);
-
-                    Debug.LogError(
-                        "[ULTRADROID DEBUG] Overlay created. " +
-                        "Sprite=" +
-                        (iconImage.sprite == null
-                            ? "NULL"
-                            : iconImage.sprite.name) +
-                        ", Enabled=" + iconImage.enabled +
-                        ", Active=" + iconObject.activeInHierarchy +
-                        ", Size=" +
-                        (iconRect != null
-                            ? iconRect.rect.size.ToString()
-                            : "NO RECT"));
+                    Debug.Log(
+                        "[ULTRADROID] Icon assigned to " + config.Id);
                 }
                 else
                 {
                     Debug.LogError(
-                        "[ULTRADROID DEBUG] Icon Image component missing for " +
+                        "[ULTRADROID] Icon Image component missing for " +
                         config.Id);
                 }
-            }
-            else
-            {
-                Debug.LogError(
-                    "[ULTRADROID DEBUG] No icon supplied for " + config.Id);
             }
 
             if (!string.IsNullOrEmpty(config.Label))
