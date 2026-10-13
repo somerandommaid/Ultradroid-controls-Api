@@ -135,6 +135,14 @@ namespace ULTRADROID.ExampleMod
                     fileBytes.Length
                 );
 
+                if (fileBytes.Length == 0)
+                {
+                    Log.LogError(
+                        "[ULTRADROID Example] PNG file is empty."
+                    );
+                    return null;
+                }
+
                 Log.LogInfo(
                     "[ULTRADROID Example] Creating Texture2D."
                 );
@@ -151,27 +159,14 @@ namespace ULTRADROID.ExampleMod
                 );
 
                 Log.LogInfo(
-                    "[ULTRADROID Example] Creating IL2CPP byte array."
+                    "[ULTRADROID Example] Creating IL2CPP byte array from PNG."
                 );
 
                 Il2CppStructArray<byte> il2CppBytes =
-                    new Il2CppStructArray<byte>(fileBytes.Length);
+                    new Il2CppStructArray<byte>(fileBytes);
 
                 Log.LogInfo(
-                    "[ULTRADROID Example] IL2CPP byte array created."
-                );
-
-                Log.LogInfo(
-                    "[ULTRADROID Example] Copying PNG bytes."
-                );
-
-                for (int i = 0; i < fileBytes.Length; i++)
-                {
-                    il2CppBytes[i] = fileBytes[i];
-                }
-
-                Log.LogInfo(
-                    "[ULTRADROID Example] PNG bytes copied."
+                    "[ULTRADROID Example] IL2CPP byte array created and filled."
                 );
 
                 Log.LogInfo(
@@ -198,6 +193,11 @@ namespace ULTRADROID.ExampleMod
                     UnityEngine.Object.Destroy(texture);
                     return null;
                 }
+
+                Log.LogInfo(
+                    "[ULTRADROID Example] PNG decoded; dimensions: " +
+                    texture.width + "x" + texture.height
+                );
 
                 Log.LogInfo(
                     "[ULTRADROID Example] Creating sprite."
