@@ -1,0 +1,64 @@
+name: Build ULTRADROID Controls API
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Check reference assemblies
+        shell: bash
+        run: |
+          set -e
+          required=(
+            "BepInEx.Core.dll"
+            "BepInEx.Unity.IL2CPP.dll"
+            "Il2CppInterop.Runtime.dll"
+            "Il2Cppmscorlib.dll"
+            "Assembly-CSharp.dll"
+            "Unity.InputSystem.dll"
+            "UnityEngine.CoreModule.dll"
+            "UnityEngine.IMGUIModule.dll"
+            "UnityEngine.UI.dll"
+            "UnityEngine.TextRenderingModule.dll"
+          )
+          missing=0
+          for name in "${required[@]}"; do
+            if [ ! -f "lib/$name" ]; then
+              echo "::error::Missing reference: lib/$name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "The source package does not bundle game/runtime DLLs. Configure the matching reference assemblies for this build first."
+            exit 1
+          fi
+
+      - name: Build framework and example
+        run: |
+          dotnet build src/ULTRADROID.Core/ULTRADROID.Core.csproj --configuration Release
+          dotnet build examples/ExampleMod/ExampleMod.csproj --configuration Release
+
+      - name: Stage output artifacts
+        shell: bash
+        run: |
+          mkdir -p dist/ULTRADROID dist/ExampleMod
+          cp src/ULTRADROID.API/bin/Release/net10.0/ULTRADROID.API.dll dist/ULTRADROID/
+          cp src/ULTRADROID.Core/bin/Release/net10.0/ULTRADROID.Core.dll dist/ULTRADROID/
+          cp examples/ExampleMod/bin/Release/net10.0/ULTRADROID.ExampleMod.dll dist/ExampleMod/
+          cp README.md dist/README.md
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ULTRADROID-Controls-API
+          path: dist/
