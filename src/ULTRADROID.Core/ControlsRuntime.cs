@@ -13,9 +13,8 @@ using UnityEngine.UI;
 namespace ULTRADROID.Core
 {
     /// <summary>
-    /// Bridges the public API to the existing TouchManager and layout editor.
-    /// Clones a native OnScreenButton, registers it with TouchManager.buttons,
-    /// and registers its baseline scale.
+    /// Bridges the public API to TouchManager and the layout editor.
+    /// Clones a native OnScreenButton and registers it with TouchManager.
     /// </summary>
     public sealed class ControlsRuntime : MonoBehaviour
     {
@@ -99,9 +98,7 @@ namespace ULTRADROID.Core
                 if (activeButtons.TryGetValue(
                         registration.Config.Id, out RuntimeButton current) &&
                     ReferenceEquals(current.Registration, registration))
-                {
                     continue;
-                }
 
                 if (activeButtons.ContainsKey(registration.Config.Id))
                     RemoveRuntimeButton(manager, registration.Config.Id);
@@ -141,8 +138,8 @@ namespace ULTRADROID.Core
                 return null;
             }
 
-            string gameObjectName = MakeGameObjectName(
-                registration.Config.Id);
+            string gameObjectName =
+                MakeGameObjectName(registration.Config.Id);
 
             Transform parent = source.transform.parent;
             GameObject clone = null;
@@ -239,7 +236,7 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // Create a separate icon overlay; preserve the native background.
+            // Keep the native button background and create a separate icon.
             if (config.Icon != null)
             {
                 Transform existingIcon =
@@ -256,7 +253,6 @@ namespace ULTRADROID.Core
                     iconObject = new GameObject(
                         "ULTRADROID_CustomIcon",
                         Il2CppType.Of<RectTransform>(),
-                        Il2CppType.Of<CanvasRenderer>(),
                         Il2CppType.Of<Image>());
 
                     iconObject.transform.SetParent(clone.transform, false);
@@ -303,9 +299,7 @@ namespace ULTRADROID.Core
 
                 if (labels != null && labels.Length > 0 &&
                     labels[0] != null)
-                {
                     labels[0].text = config.Label;
-                }
             }
         }
 
@@ -408,9 +402,7 @@ namespace ULTRADROID.Core
 
             if (target != null &&
                 (target.localScale - targetScale).sqrMagnitude > 0.000001f)
-            {
                 target.localScale = targetScale;
-            }
         }
 
         [HideFromIl2Cpp]
@@ -459,9 +451,7 @@ namespace ULTRADROID.Core
 
             if (!float.IsNaN(factor) && !float.IsInfinity(factor) &&
                 Mathf.Abs(factor) > 0.001f)
-            {
                 currentScale /= factor;
-            }
 
             return TouchManager.SafeScale(currentScale);
         }
@@ -501,9 +491,7 @@ namespace ULTRADROID.Core
             if (manager != null && manager.baseScaleLookup != null &&
                 clone != null &&
                 manager.baseScaleLookup.ContainsKey(clone.name))
-            {
                 manager.baseScaleLookup.Remove(clone.name);
-            }
 
             if (clone != null)
                 UnityEngine.Object.Destroy(clone);
