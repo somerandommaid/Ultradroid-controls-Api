@@ -74,13 +74,14 @@ namespace ULTRADROID.ExampleMod
 
             Sprite icon = LoadIcon("ultradroid-demo-icon.png");
 
-            if (icon == null)
-            {
-                Log.LogWarning(
-                    "[ULTRADROID Example] Icon unavailable; " +
-                    "registering button without an icon."
-                );
-            }
+            Log.LogInfo(
+                "[ULTRADROID Example] LoadIcon returned: " +
+                (icon != null)
+            );
+
+            Log.LogInfo(
+                "[ULTRADROID Example] Registering button."
+            );
 
             buttonHandle = ULTRADROIDControls.AddButton(
                 new ButtonConfig
@@ -101,7 +102,7 @@ namespace ULTRADROID.ExampleMod
             );
 
             Log.LogInfo(
-                "[ULTRADROID Example] Registered button ID: " +
+                "[ULTRADROID Example] Button registered: " +
                 buttonHandle.Id
             );
         }
@@ -145,20 +146,24 @@ namespace ULTRADROID.ExampleMod
                     false
                 );
 
-                if (texture == null)
-                {
-                    Log.LogError(
-                        "[ULTRADROID Example] Texture2D creation failed."
-                    );
-                    return null;
-                }
-
                 Log.LogInfo(
                     "[ULTRADROID Example] Texture2D created."
                 );
 
+                Log.LogInfo(
+                    "[ULTRADROID Example] Creating IL2CPP byte array."
+                );
+
                 Il2CppStructArray<byte> il2CppBytes =
                     new Il2CppStructArray<byte>(fileBytes.Length);
+
+                Log.LogInfo(
+                    "[ULTRADROID Example] IL2CPP byte array created."
+                );
+
+                Log.LogInfo(
+                    "[ULTRADROID Example] Copying PNG bytes."
+                );
 
                 for (int i = 0; i < fileBytes.Length; i++)
                 {
@@ -166,15 +171,23 @@ namespace ULTRADROID.ExampleMod
                 }
 
                 Log.LogInfo(
-                    "[ULTRADROID Example] Loading PNG data."
+                    "[ULTRADROID Example] PNG bytes copied."
                 );
 
-                bool loaded =
-                    ImageConversion.LoadImage(
-                        texture,
-                        il2CppBytes,
-                        false
-                    );
+                Log.LogInfo(
+                    "[ULTRADROID Example] Calling LoadImage."
+                );
+
+                bool loaded = ImageConversion.LoadImage(
+                    texture,
+                    il2CppBytes,
+                    false
+                );
+
+                Log.LogInfo(
+                    "[ULTRADROID Example] LoadImage returned: " +
+                    loaded
+                );
 
                 if (!loaded)
                 {
@@ -187,7 +200,7 @@ namespace ULTRADROID.ExampleMod
                 }
 
                 Log.LogInfo(
-                    "[ULTRADROID Example] PNG decoded."
+                    "[ULTRADROID Example] Creating sprite."
                 );
 
                 Sprite sprite = Sprite.Create(
@@ -200,6 +213,10 @@ namespace ULTRADROID.ExampleMod
                     ),
                     new Vector2(0.5f, 0.5f),
                     100f
+                );
+
+                Log.LogInfo(
+                    "[ULTRADROID Example] Sprite.Create returned."
                 );
 
                 if (sprite == null)
