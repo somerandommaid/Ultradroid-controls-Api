@@ -7,6 +7,7 @@ using BepInEx.Unity.IL2CPP;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using ULTRADROID.API;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 
 namespace ULTRADROID.ExampleMod
@@ -23,6 +24,8 @@ namespace ULTRADROID.ExampleMod
     public sealed class ExampleButtonMod : BasePlugin
     {
         private ButtonHandle buttonHandle;
+
+        private UnityAction<Scene, LoadSceneMode> sceneLoadedHandler;
         private bool initialized;
 
         public override void Load()
@@ -31,7 +34,8 @@ namespace ULTRADROID.ExampleMod
                 "[ULTRADROID Example] Loaded; waiting for scene load."
             );
 
-            SceneManager.sceneLoaded += OnSceneLoaded;
+            sceneLoadedHandler = OnSceneLoaded;
+            SceneManager.sceneLoaded += sceneLoadedHandler;
         }
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -40,7 +44,7 @@ namespace ULTRADROID.ExampleMod
                 return;
 
             initialized = true;
-            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded -= sceneLoadedHandler;
 
             Log.LogInfo(
                 "[ULTRADROID Example] Scene loaded: " + scene.name
@@ -115,7 +119,10 @@ namespace ULTRADROID.ExampleMod
 
                 if (pngData.Length == 0)
                 {
-                    Log.LogWarning("[ULTRADROID Example] PNG is empty.");
+                    Log.LogWarning(
+                        "[ULTRADROID Example] PNG is empty."
+                    );
+
                     return null;
                 }
 
@@ -128,11 +135,6 @@ namespace ULTRADROID.ExampleMod
                     2,
                     TextureFormat.RGBA32,
                     false
-                );
-
-                Log.LogInfo(
-                    "[ULTRADROID Example] Texture2D created; "
-                    + "converting PNG data."
                 );
 
                 var il2cppData =
