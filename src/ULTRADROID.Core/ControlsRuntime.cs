@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -85,7 +84,7 @@ namespace ULTRADROID.Core
 
             foreach (ButtonRegistration registration in registrations)
             {
-                if (registration == null)
+                if (registration == null || registration.Config == null)
                     continue;
 
                 if (registration.IsRemoved)
@@ -174,8 +173,8 @@ namespace ULTRADROID.Core
                 return null;
             }
 
-            // Critical: disable the original game-input handler.
-            // The UI Button callback below handles custom actions.
+            // Prevent the cloned native control from triggering Fire.
+            // The UI Button below handles the custom action.
             control.enabled = false;
 
             try
@@ -231,7 +230,7 @@ namespace ULTRADROID.Core
             Sprite icon = config.Icon;
 
             Debug.Log(
-                "[ULTRADROID] ApplyVisuals: " + config.Id +
+                "[ULTRADROID] ApplyVisuals started: " + config.Id +
                 " | icon CLR-null=" + ReferenceEquals(icon, null) +
                 " | Unity-null=" + (icon == null));
 
@@ -250,13 +249,16 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // Diagnose the hierarchy without changing a guessed image.
             Image[] images =
                 clone.GetComponentsInChildren<Image>(true);
 
             Debug.Log(
                 "[ULTRADROID] Found " + images.Length +
                 " Image components on " + config.Id);
+
+            Image bestImage = null;
+            int bestScore = int.MinValue;
+            string bestPath = string.Empty;
 
             for (int i = 0; i < images.Length; i++)
             {
@@ -274,12 +276,14 @@ namespace ULTRADROID.Core
                     parent = parent.parent;
                 }
 
-                if (parent == clone.transform)
-                    path = clone.name + "/" + path;
+                path = clone.name + "/" + path;
 
+                string objectName = candidate.name.ToLowerInvariant();
                 string spriteName = candidate.sprite != null
                     ? candidate.sprite.name
                     : "<null>";
+
+                string lowerSpriteName = spriteName.ToLowerInvariant();
 
                 Debug.Log(
                     "[ULTRADROID] IMAGE[" + i + "]" +
@@ -287,6 +291,42 @@ namespace ULTRADROID.Core
                     " sprite=" + spriteName +
                     " enabled=" + candidate.enabled +
                     " active=" + candidate.gameObject.activeInHierarchy);
+
+                // Prefer likely icon images over backgrounds.
+                int score = 0;
+
+                if (objectName.Contains("icon"))
+                    score += 100;
+
+                if (objectName.Contains("image"))
+                    score += 20;
+
+                if (objectName.Contains("fire"))
+                    score += 60;
+
+                if (lowerSpriteName.Contains("fire"))
+                    score += 80;
+
+                if (objectName.Contains("background") ||
+                    objectName.Contains("backdrop"))
+                    score -= 100;
+
+                if (objectName == "bg" ||
+                    objectName.Contains("background"))
+                    score -= 50;
+
+                if (candidate.transform == clone.transform)
+                    score -= 30;
+
+                if (candidate.sprite == null)
+                    score -= 10;
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestImage = candidate;
+                    bestPath = path;
+                }
             }
 
             if (icon == null)
@@ -294,25 +334,20 @@ namespace ULTRADROID.Core
                 Debug.LogWarning(
                     "[ULTRADROID] Icon unavailable for " + config.Id);
             }
-            else if (images.Length > 0)
+            else if (bestImage != null)
             {
-                // Temporary: replace the first Image for testing.
-                // Hierarchy logs above will help select the exact icon later.
-                Image target = images[0];
+                bestImage.sprite = icon;
+                bestImage.preserveAspect = true;
+                bestImage.color = Color.white;
+                bestImage.enabled = true;
+                bestImage.gameObject.SetActive(true);
+                bestImage.raycastTarget = false;
 
-                if (target != null)
-                {
-                    target.sprite = icon;
-                    target.preserveAspect = true;
-                    target.color = Color.white;
-                    target.enabled = true;
-                    target.gameObject.SetActive(true);
-                    target.raycastTarget = false;
-
-                    Debug.Log(
-                        "[ULTRADROID] Assigned custom sprite to " +
-                        target.name + " on " + config.Id);
-                }
+                Debug.Log(
+                    "[ULTRADROID] Assigned custom sprite '" + icon.name +
+                    "' to " + bestPath +
+                    " | score=" + bestScore +
+                    " | button=" + config.Id);
             }
             else
             {
@@ -329,6 +364,9 @@ namespace ULTRADROID.Core
                     labels[0] != null)
                     labels[0].text = config.Label;
             }
+
+            Debug.Log(
+                "[ULTRADROID] ApplyVisuals finished: " + config.Id);
         }
 
         [HideFromIl2Cpp]
