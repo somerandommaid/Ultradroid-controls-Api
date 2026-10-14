@@ -354,7 +354,7 @@ namespace ULTRADROID.Core
                 "[ULTRADROID] Icon diagnostic: id=" + config.Id +
                 ", iconClrNull=" + ReferenceEquals(icon, null) +
                 ", iconUnityNull=" + (icon == null) +
-                ", registrationConfigSame=" + ReferenceEquals(config, config));
+                ", configId=" + config.Id);
 
             if (icon == null)
             {
@@ -377,12 +377,32 @@ namespace ULTRADROID.Core
             else
             {
                 Image[] images = clone.GetComponentsInChildren<Image>(true);
+                bool addedRootImage = false;
                 ControlsRuntimeLog.Info("[ULTRADROID] Found " + images.Length + " Image component(s) on " + config.Id);
+
+                // Unity's OnScreenButton provides input behavior, not a visual by itself.
+                // If the cloned control has no Image anywhere in its hierarchy, give its
+                // existing RectTransform an Image so the icon is actually renderable.
+                // Keep this Image raycastable so the Button added/bound below can receive taps.
                 if (images.Length == 0)
                 {
-                    ControlsRuntimeLog.Warning("[ULTRADROID] No Image found on button " + config.Id);
+                    Image rootImage = clone.GetComponent<Image>();
+                    if (rootImage == null)
+                        rootImage = clone.AddComponent<Image>();
+
+                    if (rootImage != null)
+                    {
+                        images = new Image[] { rootImage };
+                        addedRootImage = true;
+                        ControlsRuntimeLog.Info("[ULTRADROID] Added root Image to render icon for " + config.Id);
+                    }
+                    else
+                    {
+                        ControlsRuntimeLog.Warning("[ULTRADROID] Could not add Image to render icon for " + config.Id);
+                    }
                 }
-                else if (images[0] != null)
+
+                if (images.Length > 0 && images[0] != null)
                 {
                     Image image = images[0];
                     image.sprite = icon;
@@ -390,8 +410,9 @@ namespace ULTRADROID.Core
                     image.color = Color.white;
                     image.enabled = true;
                     image.gameObject.SetActive(true);
-                    image.raycastTarget = false;
-                    ControlsRuntimeLog.Info("[ULTRADROID] Assigned icon " + icon.name + " to " + config.Id + " on " + image.gameObject.name);
+                    image.raycastTarget = addedRootImage;
+                    ControlsRuntimeLog.Info("[ULTRADROID] Assigned icon " + icon.name + " to " + config.Id +
+                        " on " + image.gameObject.name + "; raycastTarget=" + image.raycastTarget);
                 }
             }
 
