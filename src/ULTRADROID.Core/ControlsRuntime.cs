@@ -386,19 +386,60 @@ namespace ULTRADROID.Core
                 // Keep this Image raycastable so the Button added/bound below can receive taps.
                 if (images.Length == 0)
                 {
-                    Image rootImage = clone.GetComponent<Image>();
-                    if (rootImage == null)
-                        rootImage = clone.AddComponent<Image>();
+                    // UI Graphic components require a CanvasRenderer. Usually Unity adds
+                    // required components automatically, but do it explicitly here and
+                    // log every step for IL2CPP builds where an AddComponent can fail.
+                    try
+                    {
+                        RectTransform rootRect = clone.GetComponent<RectTransform>();
+                        ControlsRuntimeLog.Info(
+                            "[ULTRADROID] Icon target root=" + clone.name +
+                            ", rectTransform=" + (rootRect != null) +
+                            ", canvasRendererBefore=" + (clone.GetComponent<CanvasRenderer>() != null));
 
-                    if (rootImage != null)
-                    {
-                        images = new Image[] { rootImage };
-                        addedRootImage = true;
-                        ControlsRuntimeLog.Info("[ULTRADROID] Added root Image to render icon for " + config.Id);
+                        CanvasRenderer canvasRenderer = clone.GetComponent<CanvasRenderer>();
+                        if (canvasRenderer == null)
+                        {
+                            canvasRenderer = clone.AddComponent<CanvasRenderer>();
+                            ControlsRuntimeLog.Info(
+                                "[ULTRADROID] AddComponent<CanvasRenderer> returned " +
+                                (canvasRenderer != null ? "a component" : "null"));
+                        }
+
+                        Image rootImage = clone.GetComponent<Image>();
+                        if (rootImage == null)
+                        {
+                            rootImage = clone.AddComponent<Image>();
+                            ControlsRuntimeLog.Info(
+                                "[ULTRADROID] AddComponent<Image> returned " +
+                                (rootImage != null ? "a component" : "null"));
+                        }
+
+                        // Re-query the object in case AddComponent created the native
+                        // component but the first managed wrapper was not returned.
+                        if (rootImage == null)
+                            rootImage = clone.GetComponent<Image>();
+
+                        if (rootImage != null)
+                        {
+                            images = new Image[] { rootImage };
+                            addedRootImage = true;
+                            ControlsRuntimeLog.Info("[ULTRADROID] Root Image is available for " + config.Id);
+                        }
+                        else
+                        {
+                            ControlsRuntimeLog.Warning(
+                                "[ULTRADROID] Image still missing after CanvasRenderer/Image attempts; " +
+                                "rectTransform=" + (clone.GetComponent<RectTransform>() != null) +
+                                ", canvasRenderer=" + (clone.GetComponent<CanvasRenderer>() != null) +
+                                ", image=" + (clone.GetComponent<Image>() != null));
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        ControlsRuntimeLog.Warning("[ULTRADROID] Could not add Image to render icon for " + config.Id);
+                        ControlsRuntimeLog.Warning(
+                            "[ULTRADROID] Creating the icon Image threw: " + ex.GetType().FullName +
+                            ": " + ex.Message + "\n" + ex.StackTrace);
                     }
                 }
 
