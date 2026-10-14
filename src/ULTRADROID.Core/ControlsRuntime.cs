@@ -12,11 +12,12 @@ using UnityEngine.UI;
 
 namespace ULTRADROID.Core
 {
-    /// <summary>
+    /// **Summary:**
+
     /// IL2CPP-injected Unity component. Keep Unity-facing callbacks here and keep
     /// managed ULTRADROID types/method signatures in ControlsRuntimeLogic below.
     /// This avoids Il2CppInterop trying to expose helper methods to IL2CPP.
-    /// </summary>
+    /// 
     public sealed class ControlsRuntime : MonoBehaviour
     {
         private ControlsRuntimeLogic logic;
@@ -92,10 +93,11 @@ namespace ULTRADROID.Core
         }
     }
 
-    /// <summary>
+    /// **Summary:**
+
     /// Managed implementation for the Controls API. This class is not registered
     /// with ClassInjector, so its helper methods may use ULTRADROID managed types.
-    /// </summary>
+    /// 
     internal sealed class ControlsRuntimeLogic
     {
         private TouchManager activeManager;
@@ -320,7 +322,7 @@ namespace ULTRADROID.Core
                 ", registrationConfigSame=" +
                     ReferenceEquals(config, registration.Config));
 
-            ApplyVisuals(clone, config);
+            ApplyVisuals(clone, config, manager);
             BindClick(clone, registration);
 
             if (!ContainsButton(manager, control))
@@ -341,7 +343,7 @@ namespace ULTRADROID.Core
             return runtimeButton;
         }
 
-        private void ApplyVisuals(GameObject clone, ButtonConfig config)
+        private void ApplyVisuals(GameObject clone, ButtonConfig config, TouchManager manager)
         {
             if (clone == null || config == null)
             {
@@ -381,56 +383,114 @@ namespace ULTRADROID.Core
                 ControlsRuntimeLog.Info("[ULTRADROID] Found " + images.Length + " Image component(s) on " + config.Id);
 
                 // Unity's OnScreenButton provides input behavior, not a visual by itself.
-                // If the cloned control has no Image anywhere in its hierarchy, give its
-                // existing RectTransform an Image so the icon is actually renderable.
-                // Keep this Image raycastable so the Button added/bound below can receive taps.
+                // If the cloned control has no Image anywhere in its hierarchy, give it one.
                 if (images.Length == 0)
                 {
-                    // Image declares its required UI rendering components in Unity.
-                    // Avoid directly naming CanvasRenderer here: this project's reference
-                    // set does not expose that type to the compiler. Adding Image lets
-                    // Unity handle its required components internally.
+                    // ---------------------------------------------------------------
+                    // Preferred path: clone a real Image that already exists on a
+                    // native OnScreenButton. This completely avoids the IL2CPP
+                    // AddComponent<Image>() returning null problem.
+                    // ---------------------------------------------------------------
+                    Image sourceImage = null;
                     try
                     {
-                        RectTransform rootRect = clone.GetComponent<RectTransform>();
-                        ControlsRuntimeLog.Info(
-                            "[ULTRADROID] Icon target root=" + clone.name +
-                            ", rectTransform=" + (rootRect != null));
+                        OnScreenButton anyNative = null;
+                        if (manager != null && manager.buttons != null && manager.buttons.Count > 0)
+                            anyNative = manager.buttons[0];
 
-                        Image rootImage = clone.GetComponent<Image>();
-                        if (rootImage == null)
-                        {
-                            rootImage = clone.AddComponent<Image>();
-                            ControlsRuntimeLog.Info(
-                                "[ULTRADROID] AddComponent<Image> returned " +
-                                (rootImage != null ? "a component" : "null"));
-                        }
+                        if (anyNative == null)
+                            anyNative = UnityEngine.Object.FindObjectOfType<OnScreenButton>();
 
-                        // Re-query in case Unity created the native component but the
-                        // initial IL2CPP wrapper was not returned by AddComponent.
-                        if (rootImage == null)
-                            rootImage = clone.GetComponent<Image>();
-
-                        if (rootImage != null)
-                        {
-                            images = new Image[] { rootImage };
-                            addedRootImage = true;
-                            ControlsRuntimeLog.Info("[ULTRADROID] Root Image is available for " + config.Id);
-                        }
-                        else
-                        {
-                            ControlsRuntimeLog.Warning(
-                                "[ULTRADROID] Image still missing after AddComponent<Image>; " +
-                                "rectTransform=" + (clone.GetComponent<RectTransform>() != null) +
-                                ", image=" + (clone.GetComponent<Image>() != null));
-                        }
-
+                        if (anyNative != null)
+                            sourceImage = anyNative.GetComponentInChildren<Image>(true);
                     }
                     catch (Exception ex)
                     {
-                        ControlsRuntimeLog.Warning(
-                            "[ULTRADROID] Creating the icon Image threw: " + ex.GetType().FullName +
-                            ": " + ex.Message + "\n" + ex.StackTrace);
+                        ControlsRuntimeLog.Warning("[ULTRADROID] Could not locate a native Image to clone: " + ex.Message);
+                    }
+
+                    if (sourceImage != null)
+                    {
+                        try
+                        {
+                            Image rootImage = UnityEngine.Object.Instantiate(sourceImage, clone.transform, false);
+                            rootImage.name = "ULTRADROID_Icon";
+                            rootImage.sprite = null;               // clear native sprite
+                            rootImage.color = Color.white;
+                            rootImage.preserveAspect = true;
+                            rootImage.raycastTarget = true;        // required for the Button we bind later
+                            rootImage.enabled = true;
+                            rootImage.gameObject.SetActive(true);
+
+                            // Stretch to fill the button’s RectTransform
+                            RectTransform rt = rootImage.GetComponent<RectTransform>();
+                            if (rt != null)
+                            {
+                                rt.anchorMin = Vector2.zero;
+                                rt.anchorMax = Vector2.one;
+                                rt.offsetMin = Vector2.zero;
+                                rt.offsetMax = Vector2.zero;
+                                rt.localScale = Vector3.one;
+                                rt.localPosition = Vector3.zero;
+                            }
+
+                            images = new Image[] { rootImage };
+                            addedRootImage = true;
+                            ControlsRuntimeLog.Info("[ULTRADROID] Cloned native Image for " + config.Id);
+                        }
+                        catch (Exception ex)
+                        {
+                            ControlsRuntimeLog.Warning(
+                                "[ULTRADROID] Cloning Image failed: " + ex.GetType().FullName + ": " + ex.Message);
+                        }
+                    }
+
+                    // ---------------------------------------------------------------
+                    // Last-resort fallback – only used when cloning is impossible
+                    // ---------------------------------------------------------------
+                    if (images.Length == 0)
+                    {
+                        try
+                        {
+                            RectTransform rootRect = clone.GetComponent<RectTransform>();
+                            ControlsRuntimeLog.Info(
+                                "[ULTRADROID] Icon target root=" + clone.name +
+                                ", rectTransform=" + (rootRect != null));
+
+                            Image rootImage = clone.GetComponent<Image>();
+                            if (rootImage == null)
+                            {
+                                rootImage = clone.AddComponent<Image>();
+                                ControlsRuntimeLog.Info(
+                                    "[ULTRADROID] AddComponent<Image> returned " +
+                                    (rootImage != null ? "a component" : "null"));
+                            }
+
+                            // Re-query in case Unity created the native component but the
+                            // initial IL2CPP wrapper was not returned by AddComponent.
+                            if (rootImage == null)
+                                rootImage = clone.GetComponent<Image>();
+
+                            if (rootImage != null)
+                            {
+                                images = new Image[] { rootImage };
+                                addedRootImage = true;
+                                ControlsRuntimeLog.Info("[ULTRADROID] Root Image is available for " + config.Id);
+                            }
+                            else
+                            {
+                                ControlsRuntimeLog.Warning(
+                                    "[ULTRADROID] Image still missing after both clone and AddComponent; " +
+                                    "rectTransform=" + (clone.GetComponent<RectTransform>() != null) +
+                                    ", image=" + (clone.GetComponent<Image>() != null));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            ControlsRuntimeLog.Warning(
+                                "[ULTRADROID] Creating the icon Image threw: " + ex.GetType().FullName +
+                                ": " + ex.Message + "\n" + ex.StackTrace);
+                        }
                     }
                 }
 
@@ -442,7 +502,7 @@ namespace ULTRADROID.Core
                     image.color = Color.white;
                     image.enabled = true;
                     image.gameObject.SetActive(true);
-                    image.raycastTarget = addedRootImage;
+                    image.raycastTarget = addedRootImage || image.raycastTarget;
                     ControlsRuntimeLog.Info("[ULTRADROID] Assigned icon " + icon.name + " to " + config.Id +
                         " on " + image.gameObject.name + "; raycastTarget=" + image.raycastTarget);
                 }
@@ -704,10 +764,11 @@ namespace ULTRADROID.Core
         }
     }
 
-    /// <summary>
+    /// **Summary:**
+
     /// Routes diagnostics through BepInEx so runtime messages appear under the API's
     /// own log category instead of depending on Unity's separate log stream.
-    /// </summary>
+    /// 
     internal static class ControlsRuntimeLog
     {
         internal static ManualLogSource Source;
