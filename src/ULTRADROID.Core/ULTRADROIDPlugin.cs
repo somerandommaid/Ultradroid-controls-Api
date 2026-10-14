@@ -6,46 +6,33 @@ using ULTRADROID.API;
 
 namespace ULTRADROID.Core
 {
-[BepInPlugin(
-ULTRADROIDControls.PluginGuid,
-"ULTRADROID Controls API",
-ULTRADROIDControls.PluginVersion)]
-public sealed class ULTRADROIDPlugin : BasePlugin
-{
-public override void Load()
-{
-Log.LogInfo("[ULTRADROID] Controls API loading");
-
-        try
+    [BepInPlugin(ULTRADROIDControls.PluginGuid, "ULTRADROID Controls API", ULTRADROIDControls.PluginVersion)]
+    public sealed class ULTRADROIDPlugin : BasePlugin
+    {
+        public override void Load()
         {
-            ClassInjector.RegisterTypeInIl2Cpp<ControlsRuntime>();
-            Log.LogInfo("[ULTRADROID] ControlsRuntime type registered");
+            // Share the BepInEx logger with the runtime so lifecycle and TouchManager
+            // diagnostics appear in the ULTRADROID Controls API category.
+            ControlsRuntimeLog.Source = Log;
+            Log.LogInfo("[ULTRADROID] Controls API loading");
 
-            GameObject runtimeObject =
-                new GameObject("ULTRADROID_ControlsRuntime");
+            try
+            {
+                ClassInjector.RegisterTypeInIl2Cpp<ControlsRuntime>();
+                Log.LogInfo("[ULTRADROID] ControlsRuntime type registered");
 
-            Object.DontDestroyOnLoad(runtimeObject);
+                GameObject runtimeObject = new GameObject("ULTRADROID_ControlsRuntime");
+                Object.DontDestroyOnLoad(runtimeObject);
+                Log.LogInfo("[ULTRADROID] Runtime GameObject created: " + runtimeObject.name);
 
-            ControlsRuntime runtime =
-                runtimeObject.AddComponent<ControlsRuntime>();
-
-            Log.LogInfo(
-                "[ULTRADROID] Runtime GameObject created: " +
-                runtimeObject.name);
-
-            Log.LogInfo(
-                "[ULTRADROID] Runtime component attached: " +
-                (runtime != null));
-
-            Log.LogInfo(
-                "[ULTRADROID] Runtime enabled: " +
-                (runtime != null && runtime.enabled));
-        }
-        catch (System.Exception ex)
-        {
-            Log.LogError("[ULTRADROID] Runtime startup failed: " + ex);
+                ControlsRuntime runtime = runtimeObject.AddComponent<ControlsRuntime>();
+                Log.LogInfo("[ULTRADROID] Runtime component attached: " + (runtime != null));
+                Log.LogInfo("[ULTRADROID] Runtime enabled: " + (runtime != null && runtime.enabled));
+            }
+            catch (System.Exception ex)
+            {
+                Log.LogError("[ULTRADROID] Runtime startup failed: " + ex);
+            }
         }
     }
-}
-
 }
