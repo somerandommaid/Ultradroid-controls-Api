@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BepInEx;
+using BepInEx.Logging;
 using ULTRADROID.API;
 using UnityEngine;
 using UnityEngine.Events;
@@ -24,27 +25,47 @@ namespace ULTRADROID.Core
             logic = new ControlsRuntimeLogic();
         }
 
+        public void Awake()
+        {
+            ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime Awake");
+        }
+
+        public void OnEnable()
+        {
+            ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime OnEnable");
+        }
+
+        public void Start()
+        {
+            ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime Start");
+        }
+
         // Keep this injected component's callback signature IL2CPP-compatible.
         public void Update()
         {
-            // Diagnostic only: log the first five calls without changing button logic.
-            if (diagnosticFrames < 5)
-            {
-                diagnosticFrames++;
-                Debug.Log("[ULTRADROID] ControlsRuntime Update: " + diagnosticFrames);
-            }
-
             try
             {
-                if (logic == null)
-                    logic = new ControlsRuntimeLogic();
+                // Log only the first five frames; normal button processing still runs every frame.
+                if (diagnosticFrames < 5)
+                {
+                    diagnosticFrames++;
+                    ControlsRuntimeLog.Info(
+                        "[ULTRADROID] ControlsRuntime Update: " + diagnosticFrames +
+                        "; frame=" + Time.frameCount);
+                }
 
-                // Keep the existing runtime tick so registration, visuals, and clicks remain active.
+                if (logic == null)
+                {
+                    ControlsRuntimeLog.Warning(
+                        "[ULTRADROID] ControlsRuntimeLogic was null; recreating it.");
+                    logic = new ControlsRuntimeLogic();
+                }
+
                 logic.Tick();
             }
             catch (Exception ex)
             {
-                Debug.LogError("[ULTRADROID] ControlsRuntime.Update failed: " + ex);
+                ControlsRuntimeLog.Error("[ULTRADROID] ControlsRuntime.Update failed: " + ex);
             }
         }
     }
@@ -69,7 +90,7 @@ namespace ULTRADROID.Core
                 // Throttled heartbeat: proves the Unity Update callback is reaching this logic.
                 if (Time.frameCount - lastDiagnosticFrame >= 300)
                 {
-                    Debug.Log("[ULTRADROID] ControlsRuntime.Update is running; frame=" + Time.frameCount);
+                    ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime.Update is running; frame=" + Time.frameCount);
                     lastDiagnosticFrame = Time.frameCount;
                 }
 
@@ -108,7 +129,7 @@ namespace ULTRADROID.Core
                 string message = ex.GetType().FullName + ": " + ex.Message;
                 if (message != lastReportedError)
                 {
-                    Debug.LogError("[ULTRADROID] Runtime logic error: " + ex);
+                    ControlsRuntimeLog.Error("[ULTRADROID] Runtime logic error: " + ex);
                     lastReportedError = message;
                 }
             }
@@ -120,7 +141,7 @@ namespace ULTRADROID.Core
                 return;
 
             lastManagerState = state;
-            Debug.Log("[ULTRADROID] Runtime state: " + state);
+            ControlsRuntimeLog.Info("[ULTRADROID] Runtime state: " + state);
         }
 
         private void ResetForManager(TouchManager manager)
@@ -152,7 +173,7 @@ namespace ULTRADROID.Core
                 string id = registration.Config.Id;
                 if (string.IsNullOrEmpty(id))
                 {
-                    Debug.LogWarning("[ULTRADROID] Ignoring a button registration with an empty ID.");
+                    ControlsRuntimeLog.Warning("[ULTRADROID] Ignoring a button registration with an empty ID.");
                     continue;
                 }
 
@@ -195,14 +216,14 @@ namespace ULTRADROID.Core
         {
             if (manager == null || manager.buttons == null || manager.buttons.Count == 0)
             {
-                Debug.LogWarning("[ULTRADROID] Cannot create button: no native TouchManager button is available yet.");
+                ControlsRuntimeLog.Warning("[ULTRADROID] Cannot create button: no native TouchManager button is available yet.");
                 return null;
             }
 
             OnScreenButton source = manager.buttons[0];
             if (source == null || source.gameObject == null)
             {
-                Debug.LogWarning("[ULTRADROID] No usable native button was found yet.");
+                ControlsRuntimeLog.Warning("[ULTRADROID] No usable native button was found yet.");
                 return null;
             }
 
@@ -224,7 +245,7 @@ namespace ULTRADROID.Core
                 clone = UnityEngine.Object.Instantiate(source.gameObject, parent);
                 if (clone == null)
                 {
-                    Debug.LogError("[ULTRADROID] Failed to clone native button for " + config.Id);
+                    ControlsRuntimeLog.Error("[ULTRADROID] Failed to clone native button for " + config.Id);
                     return null;
                 }
 
@@ -235,7 +256,7 @@ namespace ULTRADROID.Core
             OnScreenButton control = clone.GetComponent<OnScreenButton>();
             if (control == null)
             {
-                Debug.LogError("[ULTRADROID] Native clone has no OnScreenButton component; ID=" + config.Id);
+                ControlsRuntimeLog.Error("[ULTRADROID] Native clone has no OnScreenButton component; ID=" + config.Id);
                 UnityEngine.Object.Destroy(clone);
                 return null;
             }
@@ -249,14 +270,14 @@ namespace ULTRADROID.Core
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[ULTRADROID] Couldn't disable native input on " + config.Id + ": " + ex.Message);
+                ControlsRuntimeLog.Warning("[ULTRADROID] Couldn't disable native input on " + config.Id + ": " + ex.Message);
             }
 
             RectTransform rect = clone.GetComponent<RectTransform>();
             if (newlyCloned && rect != null)
                 rect.anchoredPosition += config.PositionOffset;
 
-            Debug.Log("[ULTRADROID] Creating visual for " + config.Id + "; customIcon=" + (config.Icon != null));
+            ControlsRuntimeLog.Info("[ULTRADROID] Creating visual for " + config.Id + "; customIcon=" + (config.Icon != null));
             ApplyVisuals(clone, config);
             BindClick(clone, registration);
 
@@ -274,13 +295,13 @@ namespace ULTRADROID.Core
                 registration.Handle.IsReady = true;
             }
 
-            Debug.Log("[ULTRADROID] Registered custom button: " + config.Id);
+            ControlsRuntimeLog.Info("[ULTRADROID] Registered custom button: " + config.Id);
             return runtimeButton;
         }
 
         private void ApplyVisuals(GameObject clone, ButtonConfig config)
         {
-            Debug.Log("[ULTRADROID] ApplyVisuals started: " + config.Id + ", icon=" + (config.Icon != null));
+            ControlsRuntimeLog.Info("[ULTRADROID] ApplyVisuals started: " + config.Id + ", icon=" + (config.Icon != null));
 
             if (config.ApplyTint)
             {
@@ -295,7 +316,7 @@ namespace ULTRADROID.Core
             if (config.Icon != null)
             {
                 Image[] images = clone.GetComponentsInChildren<Image>(true);
-                Debug.Log("[ULTRADROID] Found " + images.Length + " Image components on " + config.Id);
+                ControlsRuntimeLog.Info("[ULTRADROID] Found " + images.Length + " Image components on " + config.Id);
 
                 for (int i = 0; i < images.Length; i++)
                 {
@@ -311,7 +332,7 @@ namespace ULTRADROID.Core
                         parent = parent.parent;
                     }
 
-                    Debug.Log("[ULTRADROID] IMAGE[" + i + "] path=" + imagePath +
+                    ControlsRuntimeLog.Info("[ULTRADROID] IMAGE[" + i + "] path=" + imagePath +
                         ", sprite=" + (candidate.sprite != null ? candidate.sprite.name : "<null>") +
                         ", enabled=" + candidate.enabled + ", active=" + candidate.gameObject.activeInHierarchy);
                 }
@@ -327,11 +348,11 @@ namespace ULTRADROID.Core
                     image.enabled = true;
                     image.gameObject.SetActive(true);
                     image.raycastTarget = false;
-                    Debug.Log("[ULTRADROID] Assigned custom sprite to " + config.Id + " on " + image.gameObject.name);
+                    ControlsRuntimeLog.Info("[ULTRADROID] Assigned custom sprite to " + config.Id + " on " + image.gameObject.name);
                 }
                 else
                 {
-                    Debug.LogWarning("[ULTRADROID] No Image component found for icon on " + config.Id);
+                    ControlsRuntimeLog.Warning("[ULTRADROID] No Image component found for icon on " + config.Id);
                 }
             }
 
@@ -377,7 +398,7 @@ namespace ULTRADROID.Core
                     }
                     catch (Exception ex)
                     {
-                        Debug.LogError("[ULTRADROID] Button callback failed for " + registration.Config.Id + ": " + ex);
+                        ControlsRuntimeLog.Error("[ULTRADROID] Button callback failed for " + registration.Config.Id + ": " + ex);
                     }
                 };
 
@@ -400,7 +421,7 @@ namespace ULTRADROID.Core
             }
             catch (Exception ex)
             {
-                Debug.LogWarning("[ULTRADROID] Couldn't reapply the saved layout: " + ex.Message);
+                ControlsRuntimeLog.Warning("[ULTRADROID] Couldn't reapply the saved layout: " + ex.Message);
             }
         }
 
@@ -532,6 +553,33 @@ namespace ULTRADROID.Core
             internal ButtonRegistration Registration { get; }
             internal OnScreenButton Control { get; }
             internal Vector3 BaseScale { get; }
+        }
+    }
+
+    /// <summary>
+    /// Routes diagnostics through BepInEx so runtime messages appear under the API's
+    /// own log category instead of depending on Unity's separate log stream.
+    /// </summary>
+    internal static class ControlsRuntimeLog
+    {
+        internal static ManualLogSource Source;
+
+        internal static void Info(string message)
+        {
+            if (Source != null) Source.LogInfo(message);
+            else Debug.Log(message);
+        }
+
+        internal static void Warning(string message)
+        {
+            if (Source != null) Source.LogWarning(message);
+            else Debug.LogWarning(message);
+        }
+
+        internal static void Error(string message)
+        {
+            if (Source != null) Source.LogError(message);
+            else Debug.LogError(message);
         }
     }
 }
