@@ -7,17 +7,13 @@ namespace ULTRADROID.API
     {
         public string Id { get; set; } = string.Empty;
         public string Label { get; set; } = string.Empty;
-
-        /// **Summary:**
-
+        
         /// Preferred way to set an icon.
         /// Path relative to BepInEx/plugins or absolute.
         /// Example: "ultradroid-demo-icon.png"
         /// 
         public string IconPath { get; set; }
 
-        /// **Summary:**
-Legacy - prefer IconPath
         public Sprite Icon { get; set; }
 
         public bool ApplyTint { get; set; } = false;
