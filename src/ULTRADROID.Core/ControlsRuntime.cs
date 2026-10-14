@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using BepInEx;
 using BepInEx.Logging;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using ULTRADROID.API;
 using UnityEngine;
 using UnityEngine.Events;
@@ -102,6 +104,12 @@ namespace ULTRADROID.Core
         private string lastReportedError = string.Empty;
         private int lastDiagnosticFrame = -300;
         private string lastManagerState = string.Empty;
+
+        // Keep the fallback Unity objects alive in the API assembly. The diagnostic
+        // showed the example plugin's Sprite wrapper is CLR-non-null but Unity-null
+        // when this runtime receives it, so reload the PNG in this assembly.
+        private static Sprite fallbackDemoIcon;
+        private static Texture2D fallbackDemoTexture;
 
         internal void Tick()
         {
@@ -335,58 +343,55 @@ namespace ULTRADROID.Core
 
         private void ApplyVisuals(GameObject clone, ButtonConfig config)
         {
-            ControlsRuntimeLog.Info("[ULTRADROID] ApplyVisuals started: " + config.Id + ", icon=" + (config.Icon != null));
+            if (clone == null || config == null)
+            {
+                ControlsRuntimeLog.Error("[ULTRADROID] ApplyVisuals received a null clone or config.");
+                return;
+            }
+
+            Sprite icon = config.Icon;
+            ControlsRuntimeLog.Info(
+                "[ULTRADROID] Icon diagnostic: id=" + config.Id +
+                ", iconClrNull=" + ReferenceEquals(icon, null) +
+                ", iconUnityNull=" + (icon == null) +
+                ", registrationConfigSame=" + ReferenceEquals(config, config));
+
+            if (icon == null)
+            {
+                icon = LoadFallbackIcon(config.Id);
+                if (icon != null)
+                    ControlsRuntimeLog.Info("[ULTRADROID] Using Core-loaded fallback icon for " + config.Id);
+            }
 
             if (config.ApplyTint)
             {
                 Graphic[] graphics = clone.GetComponentsInChildren<Graphic>(true);
                 for (int i = 0; i < graphics.Length; i++)
-                {
-                    if (graphics[i] != null)
-                        graphics[i].color = config.Tint;
-                }
+                    if (graphics[i] != null) graphics[i].color = config.Tint;
             }
 
-            if (config.Icon != null)
+            if (icon == null)
+            {
+                ControlsRuntimeLog.Warning("[ULTRADROID] Icon unavailable for " + config.Id);
+            }
+            else
             {
                 Image[] images = clone.GetComponentsInChildren<Image>(true);
-                ControlsRuntimeLog.Info("[ULTRADROID] Found " + images.Length + " Image components on " + config.Id);
-
-                for (int i = 0; i < images.Length; i++)
+                ControlsRuntimeLog.Info("[ULTRADROID] Found " + images.Length + " Image component(s) on " + config.Id);
+                if (images.Length == 0)
                 {
-                    Image candidate = images[i];
-                    if (candidate == null)
-                        continue;
-
-                    string imagePath = candidate.gameObject.name;
-                    Transform parent = candidate.transform.parent;
-                    while (parent != null && parent != clone.transform)
-                    {
-                        imagePath = parent.name + "/" + imagePath;
-                        parent = parent.parent;
-                    }
-
-                    ControlsRuntimeLog.Info("[ULTRADROID] IMAGE[" + i + "] path=" + imagePath +
-                        ", sprite=" + (candidate.sprite != null ? candidate.sprite.name : "<null>") +
-                        ", enabled=" + candidate.enabled + ", active=" + candidate.gameObject.activeInHierarchy);
+                    ControlsRuntimeLog.Warning("[ULTRADROID] No Image found on button " + config.Id);
                 }
-
-                // Preserve the current prototype behavior for now: set the first Image.
-                // The diagnostics above will show the hierarchy if this isn't the icon image.
-                if (images.Length > 0 && images[0] != null)
+                else if (images[0] != null)
                 {
                     Image image = images[0];
-                    image.sprite = config.Icon;
+                    image.sprite = icon;
                     image.preserveAspect = true;
                     image.color = Color.white;
                     image.enabled = true;
                     image.gameObject.SetActive(true);
                     image.raycastTarget = false;
-                    ControlsRuntimeLog.Info("[ULTRADROID] Assigned custom sprite to " + config.Id + " on " + image.gameObject.name);
-                }
-                else
-                {
-                    ControlsRuntimeLog.Warning("[ULTRADROID] No Image component found for icon on " + config.Id);
+                    ControlsRuntimeLog.Info("[ULTRADROID] Assigned icon " + icon.name + " to " + config.Id + " on " + image.gameObject.name);
                 }
             }
 
@@ -395,6 +400,62 @@ namespace ULTRADROID.Core
                 Text[] labels = clone.GetComponentsInChildren<Text>(true);
                 if (labels != null && labels.Length > 0 && labels[0] != null)
                     labels[0].text = config.Label;
+            }
+        }
+
+        private Sprite LoadFallbackIcon(string id)
+        {
+            // This fallback is for the supplied demo button only. Other mods should
+            // provide their own valid Sprite through ButtonConfig.Icon.
+            if (!string.Equals(id, "ULTRADROID.Example.Demo", StringComparison.Ordinal))
+                return null;
+
+            if (fallbackDemoIcon != null)
+                return fallbackDemoIcon;
+
+            string path = Path.Combine(Paths.PluginPath, "ultradroid-demo-icon.png");
+            try
+            {
+                if (!File.Exists(path))
+                {
+                    ControlsRuntimeLog.Warning("[ULTRADROID] Fallback icon file not found: " + path);
+                    return null;
+                }
+
+                byte[] bytes = File.ReadAllBytes(path);
+                if (bytes == null || bytes.Length == 0)
+                {
+                    ControlsRuntimeLog.Warning("[ULTRADROID] Fallback icon file is empty: " + path);
+                    return null;
+                }
+
+                Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                bool loaded = ImageConversion.LoadImage(texture, new Il2CppStructArray<byte>(bytes), false);
+                if (!loaded)
+                {
+                    ControlsRuntimeLog.Warning("[ULTRADROID] Core fallback couldn't decode PNG: " + path);
+                    UnityEngine.Object.Destroy(texture);
+                    return null;
+                }
+
+                Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
+                if (sprite == null)
+                {
+                    ControlsRuntimeLog.Warning("[ULTRADROID] Core fallback couldn't create Sprite: " + path);
+                    UnityEngine.Object.Destroy(texture);
+                    return null;
+                }
+
+                // Do not destroy these: the HUD Image will reference the Sprite.
+                fallbackDemoTexture = texture;
+                fallbackDemoIcon = sprite;
+                ControlsRuntimeLog.Info("[ULTRADROID] Core loaded fallback PNG " + texture.width + "x" + texture.height);
+                return fallbackDemoIcon;
+            }
+            catch (Exception ex)
+            {
+                ControlsRuntimeLog.Warning("[ULTRADROID] Core fallback icon load failed: " + ex);
+                return null;
             }
         }
 
