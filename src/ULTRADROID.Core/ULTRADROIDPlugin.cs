@@ -1,33 +1,34 @@
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
-using Il2CppInterop.Runtime.Injection;
-using UnityEngine;
 using ULTRADROID.API;
 
 namespace ULTRADROID.Core
 {
-    [BepInPlugin(ULTRADROIDControls.PluginGuid, "ULTRADROID Controls API", ULTRADROIDControls.PluginVersion)]
+    [BepInPlugin(
+        ULTRADROIDControls.PluginGuid,
+        "ULTRADROID Controls API",
+        ULTRADROIDControls.PluginVersion)]
     public sealed class ULTRADROIDPlugin : BasePlugin
     {
         public override void Load()
         {
-            // Share the BepInEx logger with the runtime so lifecycle and TouchManager
-            // diagnostics appear in the ULTRADROID Controls API category.
             ControlsRuntimeLog.Source = Log;
             Log.LogInfo("[ULTRADROID] Controls API loading");
 
             try
             {
-                ClassInjector.RegisterTypeInIl2Cpp<ControlsRuntime>();
-                Log.LogInfo("[ULTRADROID] ControlsRuntime type registered");
+                // Use BepInEx's IL2CPP host for injected MonoBehaviours.
+                // It registers the type and attaches it to the persistent host object.
+                ControlsRuntime runtime = AddComponent<ControlsRuntime>();
 
-                GameObject runtimeObject = new GameObject("ULTRADROID_ControlsRuntime");
-                Object.DontDestroyOnLoad(runtimeObject);
-                Log.LogInfo("[ULTRADROID] Runtime GameObject created: " + runtimeObject.name);
+                Log.LogInfo("[ULTRADROID] ControlsRuntime attached via BasePlugin.AddComponent: " +
+                    (runtime != null));
 
-                ControlsRuntime runtime = runtimeObject.AddComponent<ControlsRuntime>();
-                Log.LogInfo("[ULTRADROID] Runtime component attached: " + (runtime != null));
-                Log.LogInfo("[ULTRADROID] Runtime enabled: " + (runtime != null && runtime.enabled));
+                if (runtime != null)
+                {
+                    Log.LogInfo("[ULTRADROID] Runtime host object: " + runtime.gameObject.name);
+                    Log.LogInfo("[ULTRADROID] Runtime enabled: " + runtime.enabled);
+                }
             }
             catch (System.Exception ex)
             {
