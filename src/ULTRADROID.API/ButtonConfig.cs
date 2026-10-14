@@ -17,7 +17,7 @@ namespace ULTRADROID.API
         public string IconPath { get; set; }
 
         /// **Summary:**
-Legacy – prefer IconPath
+Legacy - prefer IconPath
         public Sprite Icon { get; set; }
 
         public bool ApplyTint { get; set; } = false;
