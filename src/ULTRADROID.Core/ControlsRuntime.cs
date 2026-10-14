@@ -91,8 +91,6 @@ namespace ULTRADROID.Core
 
         private static Sprite fallbackDemoIcon;
         private static Texture2D fallbackDemoTexture;
-
-        // Keep loaded icons alive
         private static readonly List<UnityEngine.Object> keepAlive = new List<UnityEngine.Object>();
 
         internal void Tick()
@@ -356,10 +354,7 @@ namespace ULTRADROID.Core
                 bool addedRootImage = false;
                 ControlsRuntimeLog.Info("[ULTRADROID] Found " + images.Length + " Image component(s) on " + config.Id);
 
-                // ============================================================
-                // FIX: Create a dedicated child GameObject for the icon
-                // (no CanvasRenderer – the type is not in the reference assemblies)
-                // ============================================================
+                // Create dedicated icon child if needed
                 if (images.Length == 0)
                 {
                     try
@@ -377,8 +372,6 @@ namespace ULTRADROID.Core
                             rt.localScale = Vector3.one;
                             rt.localPosition = Vector3.zero;
                         }
-
-                        // Image will automatically create the CanvasRenderer it needs
 
                         Image rootImage = iconGo.AddComponent<Image>();
                         if (rootImage == null)
@@ -428,11 +421,57 @@ namespace ULTRADROID.Core
                 }
             }
 
+            // ============================================================
+            // Hide the original Fire button graphics that came with the clone
+            // (this ONLY affects the custom button, never the real buttons)
+            // ============================================================
+            HideOriginalVisuals(clone);
+
             if (!string.IsNullOrEmpty(config.Label))
             {
                 Text[] labels = clone.GetComponentsInChildren<Text>(true);
                 if (labels != null && labels.Length > 0 && labels[0] != null)
                     labels[0].text = config.Label;
+            }
+        }
+
+        /// **Summary:**
+
+        /// Disables every Image / Text / Graphic on the clone EXCEPT our ULTRADROID_Icon.
+        /// This removes the Fire button look that was cloned.
+        /// It NEVER touches the real native buttons.
+        /// 
+        private void HideOriginalVisuals(GameObject clone)
+        {
+            if (clone == null) return;
+
+            // Hide all Images except our custom one
+            Image[] images = clone.GetComponentsInChildren<Image>(true);
+            for (int i = 0; i < images.Length; i++)
+            {
+                if (images[i] == null) continue;
+                if (images[i].gameObject.name == "ULTRADROID_Icon") continue;
+
+                images[i].enabled = false;
+                images[i].gameObject.SetActive(false);
+            }
+
+            // Hide all Text that came from the original button
+            Text[] texts = clone.GetComponentsInChildren<Text>(true);
+            for (int i = 0; i < texts.Length; i++)
+            {
+                if (texts[i] == null) continue;
+                texts[i].enabled = false;
+                texts[i].gameObject.SetActive(false);
+            }
+
+            // Hide any other Graphic just in case
+            Graphic[] graphics = clone.GetComponentsInChildren<Graphic>(true);
+            for (int i = 0; i < graphics.Length; i++)
+            {
+                if (graphics[i] == null) continue;
+                if (graphics[i].gameObject.name == "ULTRADROID_Icon") continue;
+                graphics[i].enabled = false;
             }
         }
 
