@@ -357,9 +357,8 @@ namespace ULTRADROID.Core
                 ControlsRuntimeLog.Info("[ULTRADROID] Found " + images.Length + " Image component(s) on " + config.Id);
 
                 // ============================================================
-                // FIX FOR THE LOG YOU SENT
-                // Create a brand-new child GameObject for the icon.
-                // This is the most reliable way on IL2CPP Android.
+                // FIX: Create a dedicated child GameObject for the icon
+                // (no CanvasRenderer – the type is not in the reference assemblies)
                 // ============================================================
                 if (images.Length == 0)
                 {
@@ -379,8 +378,7 @@ namespace ULTRADROID.Core
                             rt.localPosition = Vector3.zero;
                         }
 
-                        // Image needs a CanvasRenderer
-                        iconGo.AddComponent<CanvasRenderer>();
+                        // Image will automatically create the CanvasRenderer it needs
 
                         Image rootImage = iconGo.AddComponent<Image>();
                         if (rootImage == null)
