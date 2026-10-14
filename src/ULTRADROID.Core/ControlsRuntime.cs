@@ -15,61 +15,18 @@ namespace ULTRADROID.Core
     public sealed class ControlsRuntime : MonoBehaviour
     {
         private ControlsRuntimeLogic logic;
-        private int diagnosticFrames;
 
         public ControlsRuntime(IntPtr ptr) : base(ptr)
         {
             logic = new ControlsRuntimeLogic();
         }
 
-        public void Awake()
-        {
-            ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime Awake");
-        }
-
-        public void OnEnable()
-        {
-            ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime OnEnable");
-        }
-
-        public void Start()
-        {
-            ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime Start");
-        }
-
-        private bool fixedUpdateDiagnosticLogged;
-        public void FixedUpdate()
-        {
-            if (fixedUpdateDiagnosticLogged) return;
-            fixedUpdateDiagnosticLogged = true;
-            ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime FixedUpdate");
-        }
-
-        private bool lateUpdateDiagnosticLogged;
-        public void LateUpdate()
-        {
-            if (lateUpdateDiagnosticLogged) return;
-            lateUpdateDiagnosticLogged = true;
-            ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime LateUpdate");
-        }
-
         public void Update()
         {
             try
             {
-                if (diagnosticFrames < 5)
-                {
-                    diagnosticFrames++;
-                    ControlsRuntimeLog.Info(
-                        "[ULTRADROID] ControlsRuntime Update: " + diagnosticFrames +
-                        "; frame=" + Time.frameCount);
-                }
-
                 if (logic == null)
-                {
-                    ControlsRuntimeLog.Warning("[ULTRADROID] ControlsRuntimeLogic was null; recreating it.");
                     logic = new ControlsRuntimeLogic();
-                }
 
                 logic.Tick();
             }
@@ -86,8 +43,6 @@ namespace ULTRADROID.Core
         private readonly Dictionary<string, RuntimeButton> activeButtons =
             new Dictionary<string, RuntimeButton>(StringComparer.Ordinal);
         private string lastReportedError = string.Empty;
-        private int lastDiagnosticFrame = -300;
-        private string lastManagerState = string.Empty;
 
         private static Sprite fallbackDemoIcon;
         private static Texture2D fallbackDemoTexture;
@@ -97,37 +52,15 @@ namespace ULTRADROID.Core
         {
             try
             {
-                if (Time.frameCount - lastDiagnosticFrame >= 300)
-                {
-                    ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime.Update is running; frame=" + Time.frameCount);
-                    lastDiagnosticFrame = Time.frameCount;
-                }
-
                 TouchManager manager = UnityEngine.Object.FindObjectOfType<TouchManager>();
-                if (manager == null)
-                {
-                    ReportManagerState("TouchManager not found");
+                if (manager == null || manager.buttons == null || manager.buttons.Count == 0)
                     return;
-                }
-
-                if (manager.buttons == null)
-                {
-                    ReportManagerState("TouchManager found, but buttons list is null");
-                    return;
-                }
-
-                if (manager.buttons.Count == 0)
-                {
-                    ReportManagerState("TouchManager found, but buttons list is empty");
-                    return;
-                }
-
-                ReportManagerState("TouchManager found; native button count=" + manager.buttons.Count);
 
                 if (activeManager != manager)
                     ResetForManager(manager);
 
                 SynchronizeButtons(manager);
+
                 foreach (RuntimeButton runtimeButton in activeButtons.Values)
                     MaintainScale(manager, runtimeButton);
 
@@ -142,13 +75,6 @@ namespace ULTRADROID.Core
                     lastReportedError = message;
                 }
             }
-        }
-
-        private void ReportManagerState(string state)
-        {
-            if (state == lastManagerState) return;
-            lastManagerState = state;
-            ControlsRuntimeLog.Info("[ULTRADROID] Runtime state: " + state);
         }
 
         private void ResetForManager(TouchManager manager)
@@ -177,11 +103,7 @@ namespace ULTRADROID.Core
                 if (registration == null || registration.Config == null) continue;
 
                 string id = registration.Config.Id;
-                if (string.IsNullOrEmpty(id))
-                {
-                    ControlsRuntimeLog.Warning("[ULTRADROID] Ignoring a button registration with an empty ID.");
-                    continue;
-                }
+                if (string.IsNullOrEmpty(id)) continue;
 
                 if (registration.IsRemoved)
                 {
@@ -221,24 +143,14 @@ namespace ULTRADROID.Core
         private RuntimeButton CreateButton(TouchManager manager, ButtonRegistration registration)
         {
             if (manager == null || manager.buttons == null || manager.buttons.Count == 0)
-            {
-                ControlsRuntimeLog.Warning("[ULTRADROID] Cannot create button: no native TouchManager button is available yet.");
                 return null;
-            }
 
             OnScreenButton source = manager.buttons[0];
             if (source == null || source.gameObject == null)
-            {
-                ControlsRuntimeLog.Warning("[ULTRADROID] No usable native button was found yet.");
                 return null;
-            }
 
             ButtonConfig config = registration.Config;
-            if (config == null)
-            {
-                ControlsRuntimeLog.Error("[ULTRADROID] Icon diagnostic: config is C# null.");
-                return null;
-            }
+            if (config == null) return null;
 
             string gameObjectName = MakeGameObjectName(config.Id);
             Transform parent = source.transform.parent;
@@ -255,11 +167,7 @@ namespace ULTRADROID.Core
             if (newlyCloned)
             {
                 clone = UnityEngine.Object.Instantiate(source.gameObject, parent);
-                if (clone == null)
-                {
-                    ControlsRuntimeLog.Error("[ULTRADROID] Failed to clone native button for " + config.Id);
-                    return null;
-                }
+                if (clone == null) return null;
 
                 clone.name = gameObjectName;
                 clone.SetActive(true);
@@ -268,7 +176,6 @@ namespace ULTRADROID.Core
             OnScreenButton control = clone.GetComponent<OnScreenButton>();
             if (control == null)
             {
-                ControlsRuntimeLog.Error("[ULTRADROID] Native clone has no OnScreenButton component; ID=" + config.Id);
                 UnityEngine.Object.Destroy(clone);
                 return null;
             }
@@ -278,23 +185,13 @@ namespace ULTRADROID.Core
                 control.enabled = false;
                 control.controlPathInternal = string.Empty;
             }
-            catch (Exception ex)
-            {
-                ControlsRuntimeLog.Warning("[ULTRADROID] Couldn't disable native input on " + config.Id + ": " + ex.Message);
-            }
+            catch { }
 
             RectTransform rect = clone.GetComponent<RectTransform>();
             if (newlyCloned && rect != null)
                 rect.anchoredPosition += config.PositionOffset;
 
-            Sprite icon = config.Icon;
-            ControlsRuntimeLog.Info(
-                "[ULTRADROID] Icon diagnostic: id=" + config.Id +
-                ", iconClrNull=" + ReferenceEquals(icon, null) +
-                ", iconUnityNull=" + (icon == null) +
-                ", registrationConfigSame=" + ReferenceEquals(config, registration.Config));
-
-            ApplyVisuals(clone, config, manager);
+            ApplyVisuals(clone, config);
             BindClick(clone, registration);
 
             if (!ContainsButton(manager, control))
@@ -305,37 +202,24 @@ namespace ULTRADROID.Core
 
             RuntimeButton runtimeButton = new RuntimeButton(registration, control, baseline);
             RegisterBaseScale(manager, runtimeButton);
+
             if (registration.Handle != null)
             {
                 registration.Handle.GameObject = clone;
                 registration.Handle.IsReady = true;
             }
 
-            ControlsRuntimeLog.Info("[ULTRADROID] Registered custom button: " + config.Id);
             return runtimeButton;
         }
 
-        private void ApplyVisuals(GameObject clone, ButtonConfig config, TouchManager manager)
+        private void ApplyVisuals(GameObject clone, ButtonConfig config)
         {
-            if (clone == null || config == null)
-            {
-                ControlsRuntimeLog.Error("[ULTRADROID] ApplyVisuals received a null clone or config.");
-                return;
-            }
+            if (clone == null || config == null) return;
 
             Sprite icon = config.Icon;
-            ControlsRuntimeLog.Info(
-                "[ULTRADROID] Icon diagnostic: id=" + config.Id +
-                ", iconClrNull=" + ReferenceEquals(icon, null) +
-                ", iconUnityNull=" + (icon == null) +
-                ", configId=" + config.Id);
 
             if (icon == null)
-            {
                 icon = LoadFallbackIcon(config.Id);
-                if (icon != null)
-                    ControlsRuntimeLog.Info("[ULTRADROID] Using Core-loaded fallback icon for " + config.Id);
-            }
 
             if (config.ApplyTint)
             {
@@ -344,17 +228,11 @@ namespace ULTRADROID.Core
                     if (graphics[i] != null) graphics[i].color = config.Tint;
             }
 
-            if (icon == null)
-            {
-                ControlsRuntimeLog.Warning("[ULTRADROID] Icon unavailable for " + config.Id);
-            }
-            else
+            if (icon != null)
             {
                 Image[] images = clone.GetComponentsInChildren<Image>(true);
                 bool addedRootImage = false;
-                ControlsRuntimeLog.Info("[ULTRADROID] Found " + images.Length + " Image component(s) on " + config.Id);
 
-                // Create dedicated icon child if needed
                 if (images.Length == 0)
                 {
                     try
@@ -386,20 +264,13 @@ namespace ULTRADROID.Core
 
                             images = new Image[] { rootImage };
                             addedRootImage = true;
-                            ControlsRuntimeLog.Info("[ULTRADROID] Created dedicated icon Image child for " + config.Id);
                         }
                         else
                         {
-                            ControlsRuntimeLog.Warning("[ULTRADROID] Failed to create Image on dedicated child for " + config.Id);
                             UnityEngine.Object.Destroy(iconGo);
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        ControlsRuntimeLog.Warning(
-                            "[ULTRADROID] Creating dedicated icon Image threw: " +
-                            ex.GetType().FullName + ": " + ex.Message + "\n" + ex.StackTrace);
-                    }
+                    catch { }
                 }
 
                 if (images.Length > 0 && images[0] != null)
@@ -411,20 +282,10 @@ namespace ULTRADROID.Core
                     image.enabled = true;
                     image.gameObject.SetActive(true);
                     image.raycastTarget = addedRootImage || image.raycastTarget;
-
-                    ControlsRuntimeLog.Info("[ULTRADROID] Assigned icon " + icon.name + " to " + config.Id +
-                        " on " + image.gameObject.name + "; raycastTarget=" + image.raycastTarget);
-                }
-                else
-                {
-                    ControlsRuntimeLog.Warning("[ULTRADROID] Still no usable Image for " + config.Id);
                 }
             }
 
-            // ============================================================
             // Hide the original Fire button graphics that came with the clone
-            // (this ONLY affects the custom button, never the real buttons)
-            // ============================================================
             HideOriginalVisuals(clone);
 
             if (!string.IsNullOrEmpty(config.Label))
@@ -435,17 +296,10 @@ namespace ULTRADROID.Core
             }
         }
 
-        /// **Summary:**
-
-        /// Disables every Image / Text / Graphic on the clone EXCEPT our ULTRADROID_Icon.
-        /// This removes the Fire button look that was cloned.
-        /// It NEVER touches the real native buttons.
-        /// 
         private void HideOriginalVisuals(GameObject clone)
         {
             if (clone == null) return;
 
-            // Hide all Images except our custom one
             Image[] images = clone.GetComponentsInChildren<Image>(true);
             for (int i = 0; i < images.Length; i++)
             {
@@ -456,7 +310,6 @@ namespace ULTRADROID.Core
                 images[i].gameObject.SetActive(false);
             }
 
-            // Hide all Text that came from the original button
             Text[] texts = clone.GetComponentsInChildren<Text>(true);
             for (int i = 0; i < texts.Length; i++)
             {
@@ -465,7 +318,6 @@ namespace ULTRADROID.Core
                 texts[i].gameObject.SetActive(false);
             }
 
-            // Hide any other Graphic just in case
             Graphic[] graphics = clone.GetComponentsInChildren<Graphic>(true);
             for (int i = 0; i < graphics.Length; i++)
             {
@@ -486,24 +338,15 @@ namespace ULTRADROID.Core
             string path = Path.Combine(Paths.PluginPath, "ultradroid-demo-icon.png");
             try
             {
-                if (!File.Exists(path))
-                {
-                    ControlsRuntimeLog.Warning("[ULTRADROID] Fallback icon file not found: " + path);
-                    return null;
-                }
+                if (!File.Exists(path)) return null;
 
                 byte[] bytes = File.ReadAllBytes(path);
-                if (bytes == null || bytes.Length == 0)
-                {
-                    ControlsRuntimeLog.Warning("[ULTRADROID] Fallback icon file is empty: " + path);
-                    return null;
-                }
+                if (bytes == null || bytes.Length == 0) return null;
 
                 Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
                 bool loaded = ImageConversion.LoadImage(texture, new Il2CppStructArray<byte>(bytes), false);
                 if (!loaded)
                 {
-                    ControlsRuntimeLog.Warning("[ULTRADROID] Core fallback couldn't decode PNG: " + path);
                     UnityEngine.Object.Destroy(texture);
                     return null;
                 }
@@ -511,7 +354,6 @@ namespace ULTRADROID.Core
                 Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
                 if (sprite == null)
                 {
-                    ControlsRuntimeLog.Warning("[ULTRADROID] Core fallback couldn't create Sprite: " + path);
                     UnityEngine.Object.Destroy(texture);
                     return null;
                 }
@@ -521,12 +363,10 @@ namespace ULTRADROID.Core
                 keepAlive.Add(texture);
                 keepAlive.Add(sprite);
 
-                ControlsRuntimeLog.Info("[ULTRADROID] Core loaded fallback PNG " + texture.width + "x" + texture.height);
                 return fallbackDemoIcon;
             }
-            catch (Exception ex)
+            catch
             {
-                ControlsRuntimeLog.Warning("[ULTRADROID] Core fallback icon load failed: " + ex);
                 return null;
             }
         }
@@ -584,10 +424,7 @@ namespace ULTRADROID.Core
                 if (saved != null)
                     manager.ApplyLayout(saved);
             }
-            catch (Exception ex)
-            {
-                ControlsRuntimeLog.Warning("[ULTRADROID] Couldn't reapply the saved layout: " + ex.Message);
-            }
+            catch { }
         }
 
         private void MaintainScale(TouchManager manager, RuntimeButton runtimeButton)
