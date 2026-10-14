@@ -12,12 +12,6 @@ using UnityEngine.UI;
 
 namespace ULTRADROID.Core
 {
-    /// **Summary:**
-
-    /// IL2CPP-injected Unity component. Keep Unity-facing callbacks here and keep
-    /// managed ULTRADROID types/method signatures in ControlsRuntimeLogic below.
-    /// This avoids Il2CppInterop trying to expose helper methods to IL2CPP.
-    /// 
     public sealed class ControlsRuntime : MonoBehaviour
     {
         private ControlsRuntimeLogic logic;
@@ -46,9 +40,7 @@ namespace ULTRADROID.Core
         private bool fixedUpdateDiagnosticLogged;
         public void FixedUpdate()
         {
-            if (fixedUpdateDiagnosticLogged)
-                return;
-
+            if (fixedUpdateDiagnosticLogged) return;
             fixedUpdateDiagnosticLogged = true;
             ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime FixedUpdate");
         }
@@ -56,19 +48,15 @@ namespace ULTRADROID.Core
         private bool lateUpdateDiagnosticLogged;
         public void LateUpdate()
         {
-            if (lateUpdateDiagnosticLogged)
-                return;
-
+            if (lateUpdateDiagnosticLogged) return;
             lateUpdateDiagnosticLogged = true;
             ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime LateUpdate");
         }
 
-        // Keep this injected component's callback signature IL2CPP-compatible.
         public void Update()
         {
             try
             {
-                // Log only the first five frames; normal button processing still runs every frame.
                 if (diagnosticFrames < 5)
                 {
                     diagnosticFrames++;
@@ -79,8 +67,7 @@ namespace ULTRADROID.Core
 
                 if (logic == null)
                 {
-                    ControlsRuntimeLog.Warning(
-                        "[ULTRADROID] ControlsRuntimeLogic was null; recreating it.");
+                    ControlsRuntimeLog.Warning("[ULTRADROID] ControlsRuntimeLogic was null; recreating it.");
                     logic = new ControlsRuntimeLogic();
                 }
 
@@ -93,11 +80,6 @@ namespace ULTRADROID.Core
         }
     }
 
-    /// **Summary:**
-
-    /// Managed implementation for the Controls API. This class is not registered
-    /// with ClassInjector, so its helper methods may use ULTRADROID managed types.
-    /// 
     internal sealed class ControlsRuntimeLogic
     {
         private TouchManager activeManager;
@@ -107,17 +89,16 @@ namespace ULTRADROID.Core
         private int lastDiagnosticFrame = -300;
         private string lastManagerState = string.Empty;
 
-        // Keep the fallback Unity objects alive in the API assembly. The diagnostic
-        // showed the example plugin's Sprite wrapper is CLR-non-null but Unity-null
-        // when this runtime receives it, so reload the PNG in this assembly.
         private static Sprite fallbackDemoIcon;
         private static Texture2D fallbackDemoTexture;
+
+        // Keep loaded icons alive
+        private static readonly List<UnityEngine.Object> keepAlive = new List<UnityEngine.Object>();
 
         internal void Tick()
         {
             try
             {
-                // Throttled heartbeat: proves the Unity Update callback is reaching this logic.
                 if (Time.frameCount - lastDiagnosticFrame >= 300)
                 {
                     ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime.Update is running; frame=" + Time.frameCount);
@@ -167,9 +148,7 @@ namespace ULTRADROID.Core
 
         private void ReportManagerState(string state)
         {
-            if (state == lastManagerState)
-                return;
-
+            if (state == lastManagerState) return;
             lastManagerState = state;
             ControlsRuntimeLog.Info("[ULTRADROID] Runtime state: " + state);
         }
@@ -197,8 +176,7 @@ namespace ULTRADROID.Core
 
             foreach (ButtonRegistration registration in registrations)
             {
-                if (registration == null || registration.Config == null)
-                    continue;
+                if (registration == null || registration.Config == null) continue;
 
                 string id = registration.Config.Id;
                 if (string.IsNullOrEmpty(id))
@@ -260,8 +238,7 @@ namespace ULTRADROID.Core
             ButtonConfig config = registration.Config;
             if (config == null)
             {
-                ControlsRuntimeLog.Error(
-                    "[ULTRADROID] Icon diagnostic: config is C# null.");
+                ControlsRuntimeLog.Error("[ULTRADROID] Icon diagnostic: config is C# null.");
                 return null;
             }
 
@@ -298,8 +275,6 @@ namespace ULTRADROID.Core
                 return null;
             }
 
-            // The clone is only a visual/callback button: prevent it from invoking the
-            // inherited gameplay action (usually Fire).
             try
             {
                 control.enabled = false;
@@ -319,8 +294,7 @@ namespace ULTRADROID.Core
                 "[ULTRADROID] Icon diagnostic: id=" + config.Id +
                 ", iconClrNull=" + ReferenceEquals(icon, null) +
                 ", iconUnityNull=" + (icon == null) +
-                ", registrationConfigSame=" +
-                    ReferenceEquals(config, registration.Config));
+                ", registrationConfigSame=" + ReferenceEquals(config, registration.Config));
 
             ApplyVisuals(clone, config, manager);
             BindClick(clone, registration);
@@ -382,115 +356,58 @@ namespace ULTRADROID.Core
                 bool addedRootImage = false;
                 ControlsRuntimeLog.Info("[ULTRADROID] Found " + images.Length + " Image component(s) on " + config.Id);
 
-                // Unity's OnScreenButton provides input behavior, not a visual by itself.
-                // If the cloned control has no Image anywhere in its hierarchy, give it one.
+                // ============================================================
+                // FIX FOR THE LOG YOU SENT
+                // Create a brand-new child GameObject for the icon.
+                // This is the most reliable way on IL2CPP Android.
+                // ============================================================
                 if (images.Length == 0)
                 {
-                    // ---------------------------------------------------------------
-                    // Preferred path: clone a real Image that already exists on a
-                    // native OnScreenButton. This completely avoids the IL2CPP
-                    // AddComponent<Image>() returning null problem.
-                    // ---------------------------------------------------------------
-                    Image sourceImage = null;
                     try
                     {
-                        OnScreenButton anyNative = null;
-                        if (manager != null && manager.buttons != null && manager.buttons.Count > 0)
-                            anyNative = manager.buttons[0];
+                        GameObject iconGo = new GameObject("ULTRADROID_Icon");
+                        iconGo.transform.SetParent(clone.transform, false);
 
-                        if (anyNative == null)
-                            anyNative = UnityEngine.Object.FindObjectOfType<OnScreenButton>();
-
-                        if (anyNative != null)
-                            sourceImage = anyNative.GetComponentInChildren<Image>(true);
-                    }
-                    catch (Exception ex)
-                    {
-                        ControlsRuntimeLog.Warning("[ULTRADROID] Could not locate a native Image to clone: " + ex.Message);
-                    }
-
-                    if (sourceImage != null)
-                    {
-                        try
+                        RectTransform rt = iconGo.AddComponent<RectTransform>();
+                        if (rt != null)
                         {
-                            Image rootImage = UnityEngine.Object.Instantiate(sourceImage, clone.transform, false);
-                            rootImage.name = "ULTRADROID_Icon";
-                            rootImage.sprite = null;               // clear native sprite
+                            rt.anchorMin = Vector2.zero;
+                            rt.anchorMax = Vector2.one;
+                            rt.offsetMin = Vector2.zero;
+                            rt.offsetMax = Vector2.zero;
+                            rt.localScale = Vector3.one;
+                            rt.localPosition = Vector3.zero;
+                        }
+
+                        // Image needs a CanvasRenderer
+                        iconGo.AddComponent<CanvasRenderer>();
+
+                        Image rootImage = iconGo.AddComponent<Image>();
+                        if (rootImage == null)
+                            rootImage = iconGo.GetComponent<Image>();
+
+                        if (rootImage != null)
+                        {
                             rootImage.color = Color.white;
                             rootImage.preserveAspect = true;
-                            rootImage.raycastTarget = true;        // required for the Button we bind later
+                            rootImage.raycastTarget = true;
                             rootImage.enabled = true;
-                            rootImage.gameObject.SetActive(true);
-
-                            // Stretch to fill the button’s RectTransform
-                            RectTransform rt = rootImage.GetComponent<RectTransform>();
-                            if (rt != null)
-                            {
-                                rt.anchorMin = Vector2.zero;
-                                rt.anchorMax = Vector2.one;
-                                rt.offsetMin = Vector2.zero;
-                                rt.offsetMax = Vector2.zero;
-                                rt.localScale = Vector3.one;
-                                rt.localPosition = Vector3.zero;
-                            }
 
                             images = new Image[] { rootImage };
                             addedRootImage = true;
-                            ControlsRuntimeLog.Info("[ULTRADROID] Cloned native Image for " + config.Id);
+                            ControlsRuntimeLog.Info("[ULTRADROID] Created dedicated icon Image child for " + config.Id);
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            ControlsRuntimeLog.Warning(
-                                "[ULTRADROID] Cloning Image failed: " + ex.GetType().FullName + ": " + ex.Message);
+                            ControlsRuntimeLog.Warning("[ULTRADROID] Failed to create Image on dedicated child for " + config.Id);
+                            UnityEngine.Object.Destroy(iconGo);
                         }
                     }
-
-                    // ---------------------------------------------------------------
-                    // Last-resort fallback – only used when cloning is impossible
-                    // ---------------------------------------------------------------
-                    if (images.Length == 0)
+                    catch (Exception ex)
                     {
-                        try
-                        {
-                            RectTransform rootRect = clone.GetComponent<RectTransform>();
-                            ControlsRuntimeLog.Info(
-                                "[ULTRADROID] Icon target root=" + clone.name +
-                                ", rectTransform=" + (rootRect != null));
-
-                            Image rootImage = clone.GetComponent<Image>();
-                            if (rootImage == null)
-                            {
-                                rootImage = clone.AddComponent<Image>();
-                                ControlsRuntimeLog.Info(
-                                    "[ULTRADROID] AddComponent<Image> returned " +
-                                    (rootImage != null ? "a component" : "null"));
-                            }
-
-                            // Re-query in case Unity created the native component but the
-                            // initial IL2CPP wrapper was not returned by AddComponent.
-                            if (rootImage == null)
-                                rootImage = clone.GetComponent<Image>();
-
-                            if (rootImage != null)
-                            {
-                                images = new Image[] { rootImage };
-                                addedRootImage = true;
-                                ControlsRuntimeLog.Info("[ULTRADROID] Root Image is available for " + config.Id);
-                            }
-                            else
-                            {
-                                ControlsRuntimeLog.Warning(
-                                    "[ULTRADROID] Image still missing after both clone and AddComponent; " +
-                                    "rectTransform=" + (clone.GetComponent<RectTransform>() != null) +
-                                    ", image=" + (clone.GetComponent<Image>() != null));
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            ControlsRuntimeLog.Warning(
-                                "[ULTRADROID] Creating the icon Image threw: " + ex.GetType().FullName +
-                                ": " + ex.Message + "\n" + ex.StackTrace);
-                        }
+                        ControlsRuntimeLog.Warning(
+                            "[ULTRADROID] Creating dedicated icon Image threw: " +
+                            ex.GetType().FullName + ": " + ex.Message + "\n" + ex.StackTrace);
                     }
                 }
 
@@ -503,8 +420,13 @@ namespace ULTRADROID.Core
                     image.enabled = true;
                     image.gameObject.SetActive(true);
                     image.raycastTarget = addedRootImage || image.raycastTarget;
+
                     ControlsRuntimeLog.Info("[ULTRADROID] Assigned icon " + icon.name + " to " + config.Id +
                         " on " + image.gameObject.name + "; raycastTarget=" + image.raycastTarget);
+                }
+                else
+                {
+                    ControlsRuntimeLog.Warning("[ULTRADROID] Still no usable Image for " + config.Id);
                 }
             }
 
@@ -518,8 +440,6 @@ namespace ULTRADROID.Core
 
         private Sprite LoadFallbackIcon(string id)
         {
-            // This fallback is for the supplied demo button only. Other mods should
-            // provide their own valid Sprite through ButtonConfig.Icon.
             if (!string.Equals(id, "ULTRADROID.Example.Demo", StringComparison.Ordinal))
                 return null;
 
@@ -559,9 +479,11 @@ namespace ULTRADROID.Core
                     return null;
                 }
 
-                // Do not destroy these: the HUD Image will reference the Sprite.
                 fallbackDemoTexture = texture;
                 fallbackDemoIcon = sprite;
+                keepAlive.Add(texture);
+                keepAlive.Add(sprite);
+
                 ControlsRuntimeLog.Info("[ULTRADROID] Core loaded fallback PNG " + texture.width + "x" + texture.height);
                 return fallbackDemoIcon;
             }
@@ -593,8 +515,7 @@ namespace ULTRADROID.Core
             for (int i = 0; i < buttons.Length; i++)
             {
                 Button button = buttons[i];
-                if (button == null)
-                    continue;
+                if (button == null) continue;
 
                 button.onClick.RemoveAllListeners();
                 Action click = () =>
@@ -620,8 +541,7 @@ namespace ULTRADROID.Core
             try
             {
                 string key = TouchManager.CurrentLayoutKey;
-                if (string.IsNullOrEmpty(key))
-                    return;
+                if (string.IsNullOrEmpty(key)) return;
 
                 TouchLayoutData saved = manager.LoadLayoutFromPrefs(key);
                 if (saved != null)
@@ -743,7 +663,6 @@ namespace ULTRADROID.Core
 
         private string MakeGameObjectName(string id)
         {
-            // Base64 URL-safe encoding makes the object name stable and avoids slashes in Transform.Find paths.
             string encoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(id));
             encoded = encoded.TrimEnd('=').Replace('+', '-').Replace('/', '_');
             return "ULTRADROID_BUTTON_" + encoded;
@@ -764,11 +683,6 @@ namespace ULTRADROID.Core
         }
     }
 
-    /// **Summary:**
-
-    /// Routes diagnostics through BepInEx so runtime messages appear under the API's
-    /// own log category instead of depending on Unity's separate log stream.
-    /// 
     internal static class ControlsRuntimeLog
     {
         internal static ManualLogSource Source;
