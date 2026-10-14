@@ -17,6 +17,7 @@ namespace ULTRADROID.Core
     public sealed class ControlsRuntime : MonoBehaviour
     {
         private ControlsRuntimeLogic logic;
+        private int diagnosticFrames;
 
         public ControlsRuntime(IntPtr ptr) : base(ptr)
         {
@@ -26,11 +27,19 @@ namespace ULTRADROID.Core
         // Keep this injected component's callback signature IL2CPP-compatible.
         public void Update()
         {
+            // Diagnostic only: log the first five calls without changing button logic.
+            if (diagnosticFrames < 5)
+            {
+                diagnosticFrames++;
+                Debug.Log("[ULTRADROID] ControlsRuntime Update: " + diagnosticFrames);
+            }
+
             try
             {
                 if (logic == null)
                     logic = new ControlsRuntimeLogic();
 
+                // Keep the existing runtime tick so registration, visuals, and clicks remain active.
                 logic.Tick();
             }
             catch (Exception ex)
