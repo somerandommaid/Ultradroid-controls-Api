@@ -55,6 +55,7 @@ jobs:
           cp src/ULTRADROID.API/bin/Release/net10.0/ULTRADROID.API.dll dist/ULTRADROID/
           cp src/ULTRADROID.Core/bin/Release/net10.0/ULTRADROID.Core.dll dist/ULTRADROID/
           cp examples/ExampleMod/bin/Release/net10.0/ULTRADROID.ExampleMod.dll dist/ExampleMod/
+          cp examples/ExampleMod/ultradroid-demo-icon.png dist/ExampleMod/
           cp README.md dist/README.md
 
       - name: Upload build artifacts
