@@ -40,6 +40,26 @@ namespace ULTRADROID.Core
             ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime Start");
         }
 
+        private bool fixedUpdateDiagnosticLogged;
+        public void FixedUpdate()
+        {
+            if (fixedUpdateDiagnosticLogged)
+                return;
+
+            fixedUpdateDiagnosticLogged = true;
+            ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime FixedUpdate");
+        }
+
+        private bool lateUpdateDiagnosticLogged;
+        public void LateUpdate()
+        {
+            if (lateUpdateDiagnosticLogged)
+                return;
+
+            lateUpdateDiagnosticLogged = true;
+            ControlsRuntimeLog.Info("[ULTRADROID] ControlsRuntime LateUpdate");
+        }
+
         // Keep this injected component's callback signature IL2CPP-compatible.
         public void Update()
         {
