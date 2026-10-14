@@ -386,25 +386,16 @@ namespace ULTRADROID.Core
                 // Keep this Image raycastable so the Button added/bound below can receive taps.
                 if (images.Length == 0)
                 {
-                    // UI Graphic components require a CanvasRenderer. Usually Unity adds
-                    // required components automatically, but do it explicitly here and
-                    // log every step for IL2CPP builds where an AddComponent can fail.
+                    // Image declares its required UI rendering components in Unity.
+                    // Avoid directly naming CanvasRenderer here: this project's reference
+                    // set does not expose that type to the compiler. Adding Image lets
+                    // Unity handle its required components internally.
                     try
                     {
                         RectTransform rootRect = clone.GetComponent<RectTransform>();
                         ControlsRuntimeLog.Info(
                             "[ULTRADROID] Icon target root=" + clone.name +
-                            ", rectTransform=" + (rootRect != null) +
-                            ", canvasRendererBefore=" + (clone.GetComponent<CanvasRenderer>() != null));
-
-                        CanvasRenderer canvasRenderer = clone.GetComponent<CanvasRenderer>();
-                        if (canvasRenderer == null)
-                        {
-                            canvasRenderer = clone.AddComponent<CanvasRenderer>();
-                            ControlsRuntimeLog.Info(
-                                "[ULTRADROID] AddComponent<CanvasRenderer> returned " +
-                                (canvasRenderer != null ? "a component" : "null"));
-                        }
+                            ", rectTransform=" + (rootRect != null));
 
                         Image rootImage = clone.GetComponent<Image>();
                         if (rootImage == null)
@@ -415,8 +406,8 @@ namespace ULTRADROID.Core
                                 (rootImage != null ? "a component" : "null"));
                         }
 
-                        // Re-query the object in case AddComponent created the native
-                        // component but the first managed wrapper was not returned.
+                        // Re-query in case Unity created the native component but the
+                        // initial IL2CPP wrapper was not returned by AddComponent.
                         if (rootImage == null)
                             rootImage = clone.GetComponent<Image>();
 
@@ -429,11 +420,11 @@ namespace ULTRADROID.Core
                         else
                         {
                             ControlsRuntimeLog.Warning(
-                                "[ULTRADROID] Image still missing after CanvasRenderer/Image attempts; " +
+                                "[ULTRADROID] Image still missing after AddComponent<Image>; " +
                                 "rectTransform=" + (clone.GetComponent<RectTransform>() != null) +
-                                ", canvasRenderer=" + (clone.GetComponent<CanvasRenderer>() != null) +
                                 ", image=" + (clone.GetComponent<Image>() != null));
                         }
+
                     }
                     catch (Exception ex)
                     {
