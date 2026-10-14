@@ -248,6 +248,13 @@ namespace ULTRADROID.Core
             }
 
             ButtonConfig config = registration.Config;
+            if (config == null)
+            {
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] Icon diagnostic: config is C# null.");
+                return null;
+            }
+
             string gameObjectName = MakeGameObjectName(config.Id);
             Transform parent = source.transform.parent;
             GameObject clone = null;
@@ -297,7 +304,14 @@ namespace ULTRADROID.Core
             if (newlyCloned && rect != null)
                 rect.anchoredPosition += config.PositionOffset;
 
-            ControlsRuntimeLog.Info("[ULTRADROID] Creating visual for " + config.Id + "; customIcon=" + (config.Icon != null));
+            Sprite icon = config.Icon;
+            ControlsRuntimeLog.Info(
+                "[ULTRADROID] Icon diagnostic: id=" + config.Id +
+                ", iconClrNull=" + ReferenceEquals(icon, null) +
+                ", iconUnityNull=" + (icon == null) +
+                ", registrationConfigSame=" +
+                    ReferenceEquals(config, registration.Config));
+
             ApplyVisuals(clone, config);
             BindClick(clone, registration);
 
