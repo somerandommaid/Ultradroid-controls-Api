@@ -49,7 +49,6 @@ namespace ULTRADROID.Core
         private string lastReportedError = string.Empty;
 
         private static Sprite fallbackDemoIcon;
-        private static Texture2D fallbackDemoTexture;
 
         private static readonly List<UnityEngine.Object> keepAlive =
             new List<UnityEngine.Object>();
@@ -61,13 +60,24 @@ namespace ULTRADROID.Core
                 TouchManager manager =
                     UnityEngine.Object.FindObjectOfType<TouchManager>();
 
-                if (manager == null ||
-                    manager.buttons == null ||
-                    manager.buttons.Count == 0)
-                    return;
+                // Clean up stale buttons when the game changes scenes.
+                if (manager == null)
+                {
+                    if (activeButtons.Count > 0)
+                        ResetForManager(null);
+                    else
+                        activeManager = null;
 
+                    return;
+                }
+
+                // Remove buttons owned by the previous TouchManager.
                 if (activeManager != manager)
                     ResetForManager(manager);
+
+                // Wait until the game's native touch buttons are ready.
+                if (manager.buttons == null || manager.buttons.Count == 0)
+                    return;
 
                 SynchronizeButtons(manager);
 
@@ -93,16 +103,18 @@ namespace ULTRADROID.Core
 
         private void ResetForManager(TouchManager manager)
         {
-            foreach (RuntimeButton runtimeButton in activeButtons.Values)
+            TouchManager previousManager = activeManager;
+
+            // Copy IDs first because removal modifies activeButtons.
+            if (activeButtons.Count > 0)
             {
-                if (runtimeButton.Registration?.Handle != null)
-                {
-                    runtimeButton.Registration.Handle.IsReady = false;
-                    runtimeButton.Registration.Handle.GameObject = null;
-                }
+                string[] ids = new string[activeButtons.Count];
+                activeButtons.Keys.CopyTo(ids, 0);
+
+                foreach (string id in ids)
+                    RemoveRuntimeButton(previousManager, id);
             }
 
-            activeButtons.Clear();
             activeManager = manager;
         }
 
@@ -133,12 +145,15 @@ namespace ULTRADROID.Core
                 if (activeButtons.TryGetValue(
                         id, out RuntimeButton current) &&
                     ReferenceEquals(current.Registration, registration))
+                {
                     continue;
+                }
 
                 if (activeButtons.ContainsKey(id))
                     RemoveRuntimeButton(manager, id);
 
-                RuntimeButton created = CreateButton(manager, registration);
+                RuntimeButton created =
+                    CreateButton(manager, registration);
 
                 if (created != null)
                 {
@@ -151,7 +166,7 @@ namespace ULTRADROID.Core
             {
                 ApplySavedLayout(manager);
 
-                foreach (var rb in activeButtons.Values)
+                foreach (RuntimeButton rb in activeButtons.Values)
                 {
                     RegisterBaseScale(manager, rb);
                     MaintainScale(manager, rb);
@@ -165,7 +180,9 @@ namespace ULTRADROID.Core
         {
             if (manager?.buttons == null ||
                 manager.buttons.Count == 0)
+            {
                 return null;
+            }
 
             OnScreenButton source = manager.buttons[0];
 
@@ -178,9 +195,7 @@ namespace ULTRADROID.Core
                 return null;
 
             string gameObjectName = MakeGameObjectName(config.Id);
-
             Transform parent = source.transform.parent;
-
             GameObject clone = null;
 
             if (parent != null)
@@ -216,10 +231,14 @@ namespace ULTRADROID.Core
 
             try
             {
+                // ULTRADROID buttons use their own click callbacks.
                 control.enabled = false;
                 control.controlPathInternal = string.Empty;
             }
-            catch { }
+            catch
+            {
+                // Some game versions expose this member differently.
+            }
 
             RectTransform rect =
                 clone.GetComponent<RectTransform>();
@@ -228,7 +247,6 @@ namespace ULTRADROID.Core
                 rect.anchoredPosition += config.PositionOffset;
 
             ApplyVisuals(clone, config);
-
             BindClick(clone, registration);
 
             if (!ContainsButton(manager, control))
@@ -261,29 +279,30 @@ namespace ULTRADROID.Core
             if (clone == null || config == null)
                 return;
 
-            // 1. Load icon (IconPath is preferred)
+            // 1. Load the requested icon.
             Sprite icon = null;
 
             if (!string.IsNullOrEmpty(config.IconPath))
                 icon = LoadIconFromPath(config.IconPath);
 
             if (icon == null)
-                icon = config.Icon; // legacy
+                icon = config.Icon;
 
             if (icon == null)
-                icon = LoadFallbackIcon(config.Id); // demo only
+                icon = LoadFallbackIcon(config.Id);
 
-            // 2. Tint
+            // 2. Apply optional tint.
             if (config.ApplyTint)
             {
-                foreach (var g in clone.GetComponentsInChildren<Graphic>(true))
+                foreach (Graphic graphic in
+                         clone.GetComponentsInChildren<Graphic>(true))
                 {
-                    if (g != null)
-                        g.color = config.Tint;
+                    if (graphic != null)
+                        graphic.color = config.Tint;
                 }
             }
 
-            // 3. Apply icon
+            // 3. Apply the icon.
             if (icon != null)
             {
                 Image[] images =
@@ -335,12 +354,15 @@ namespace ULTRADROID.Core
                             UnityEngine.Object.Destroy(iconGo);
                         }
                     }
-                    catch { }
+                    catch
+                    {
+                        // Keep the button working if icon creation fails.
+                    }
                 }
 
                 if (images.Length > 0 && images[0] != null)
                 {
-                    var image = images[0];
+                    Image image = images[0];
 
                     image.sprite = icon;
                     image.preserveAspect = true;
@@ -353,13 +375,13 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // 4. Hide original Fire graphics (only on the clone)
+            // 4. Hide the cloned button's original visuals.
             HideOriginalVisuals(clone);
 
-            // 5. Label
+            // 5. Set the label.
             if (!string.IsNullOrEmpty(config.Label))
             {
-                var labels =
+                Text[] labels =
                     clone.GetComponentsInChildren<Text>(true);
 
                 if (labels != null &&
@@ -367,6 +389,8 @@ namespace ULTRADROID.Core
                     labels[0] != null)
                 {
                     labels[0].text = config.Label;
+                    labels[0].enabled = true;
+                    labels[0].gameObject.SetActive(true);
                 }
             }
         }
@@ -376,32 +400,39 @@ namespace ULTRADROID.Core
             if (clone == null)
                 return;
 
-            foreach (var img in clone.GetComponentsInChildren<Image>(true))
+            foreach (Image image in
+                     clone.GetComponentsInChildren<Image>(true))
             {
-                if (img == null ||
-                    img.gameObject.name == "ULTRADROID_Icon")
+                if (image == null ||
+                    image.gameObject.name == "ULTRADROID_Icon")
+                {
                     continue;
+                }
 
-                img.enabled = false;
-                img.gameObject.SetActive(false);
+                image.enabled = false;
+                image.gameObject.SetActive(false);
             }
 
-            foreach (var txt in clone.GetComponentsInChildren<Text>(true))
+            foreach (Text text in
+                     clone.GetComponentsInChildren<Text>(true))
             {
-                if (txt == null)
+                if (text == null)
                     continue;
 
-                txt.enabled = false;
-                txt.gameObject.SetActive(false);
+                text.enabled = false;
+                text.gameObject.SetActive(false);
             }
 
-            foreach (var g in clone.GetComponentsInChildren<Graphic>(true))
+            foreach (Graphic graphic in
+                     clone.GetComponentsInChildren<Graphic>(true))
             {
-                if (g == null ||
-                    g.gameObject.name == "ULTRADROID_Icon")
+                if (graphic == null ||
+                    graphic.gameObject.name == "ULTRADROID_Icon")
+                {
                     continue;
+                }
 
-                g.enabled = false;
+                graphic.enabled = false;
             }
         }
 
@@ -436,7 +467,7 @@ namespace ULTRADROID.Core
                     return null;
                 }
 
-                var sprite = Sprite.Create(
+                Sprite sprite = Sprite.Create(
                     texture,
                     new Rect(0, 0, texture.width, texture.height),
                     new Vector2(0.5f, 0.5f),
@@ -448,13 +479,18 @@ namespace ULTRADROID.Core
                     return null;
                 }
 
+                // Keep Unity objects alive for IL2CPP.
                 keepAlive.Add(texture);
                 keepAlive.Add(sprite);
 
                 return sprite;
             }
-            catch
+            catch (Exception ex)
             {
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] Failed to load icon '" +
+                    path + "': " + ex.Message);
+
                 return null;
             }
         }
@@ -465,20 +501,24 @@ namespace ULTRADROID.Core
                     id,
                     "ULTRADROID.Example.Demo",
                     StringComparison.Ordinal))
+            {
                 return null;
+            }
 
             if (fallbackDemoIcon != null)
                 return fallbackDemoIcon;
 
-            return LoadIconFromPath("ultradroid-demo-icon.png");
+            fallbackDemoIcon = LoadIconFromPath(
+                "ExampleMod/ultradroid-demo-icon.png");
+
+            return fallbackDemoIcon;
         }
 
-        // NEW BindClick implementation replaces the original method.
         private void BindClick(
             GameObject clone,
             ButtonRegistration registration)
         {
-            var buttons =
+            Button[] buttons =
                 clone.GetComponentsInChildren<Button>(true);
 
             if (buttons == null || buttons.Length == 0)
@@ -496,7 +536,6 @@ namespace ULTRADROID.Core
                 if (target != null)
                     added.targetGraphic = target;
 
-                // Call the listener directly on the single button we just created
                 added.onClick.RemoveAllListeners();
 
                 Action click = () =>
@@ -512,7 +551,7 @@ namespace ULTRADROID.Core
                     }
                 };
 
-                var unityAction =
+                UnityAction unityAction =
                     Il2CppInterop.Runtime.DelegateSupport
                         .ConvertDelegate<UnityAction>(click);
 
@@ -520,7 +559,6 @@ namespace ULTRADROID.Core
                 return;
             }
 
-            // Normal path – buttons already exist
             for (int i = 0; i < buttons.Length; i++)
             {
                 Button button = buttons[i];
@@ -543,7 +581,7 @@ namespace ULTRADROID.Core
                     }
                 };
 
-                var unityAction =
+                UnityAction unityAction =
                     Il2CppInterop.Runtime.DelegateSupport
                         .ConvertDelegate<UnityAction>(click);
 
@@ -565,7 +603,10 @@ namespace ULTRADROID.Core
                 if (saved != null)
                     manager.ApplyLayout(saved);
             }
-            catch { }
+            catch
+            {
+                // Layout restoration is best-effort.
+            }
         }
 
         private void MaintainScale(
@@ -574,7 +615,9 @@ namespace ULTRADROID.Core
         {
             if (manager == null ||
                 rb?.Control?.gameObject == null)
+            {
                 return;
+            }
 
             RegisterBaseScale(manager, rb);
 
@@ -583,7 +626,9 @@ namespace ULTRADROID.Core
             if (float.IsNaN(factor) ||
                 float.IsInfinity(factor) ||
                 Mathf.Abs(factor) <= 0.001f)
+            {
                 return;
+            }
 
             Vector3 target = rb.BaseScale * factor;
 
@@ -600,7 +645,9 @@ namespace ULTRADROID.Core
         {
             if (manager?.baseScaleLookup == null ||
                 rb?.Control?.gameObject == null)
+            {
                 return;
+            }
 
             string key = rb.Control.gameObject.name;
 
@@ -643,28 +690,31 @@ namespace ULTRADROID.Core
             return TouchManager.SafeScale(scale);
         }
 
-        private bool IsUsableScale(Vector3 s)
+        private bool IsUsableScale(Vector3 scale)
         {
-            return !float.IsNaN(s.x) && !float.IsInfinity(s.x) &&
-                   !float.IsNaN(s.y) && !float.IsInfinity(s.y) &&
-                   !float.IsNaN(s.z) && !float.IsInfinity(s.z) &&
-                   Mathf.Abs(s.x) > 0.0001f &&
-                   Mathf.Abs(s.y) > 0.0001f &&
-                   Mathf.Abs(s.z) > 0.0001f;
+            return !float.IsNaN(scale.x) &&
+                   !float.IsInfinity(scale.x) &&
+                   !float.IsNaN(scale.y) &&
+                   !float.IsInfinity(scale.y) &&
+                   !float.IsNaN(scale.z) &&
+                   !float.IsInfinity(scale.z) &&
+                   Mathf.Abs(scale.x) > 0.0001f &&
+                   Mathf.Abs(scale.y) > 0.0001f &&
+                   Mathf.Abs(scale.z) > 0.0001f;
         }
 
         private void RemoveRuntimeButton(
             TouchManager manager,
             string id)
         {
-            if (!activeButtons.TryGetValue(id, out var rb))
+            if (!activeButtons.TryGetValue(id, out RuntimeButton rb))
                 return;
 
             activeButtons.Remove(id);
 
-            var control = rb.Control;
+            OnScreenButton control = rb.Control;
 
-            var clone =
+            GameObject clone =
                 control != null ? control.gameObject : null;
 
             if (manager?.buttons != null && control != null)
@@ -724,11 +774,11 @@ namespace ULTRADROID.Core
         private sealed class RuntimeButton
         {
             internal RuntimeButton(
-                ButtonRegistration reg,
+                ButtonRegistration registration,
                 OnScreenButton control,
                 Vector3 baseScale)
             {
-                Registration = reg;
+                Registration = registration;
                 Control = control;
                 BaseScale = baseScale;
             }
@@ -752,3 +802,4 @@ namespace ULTRADROID.Core
         }
     }
 }
+
