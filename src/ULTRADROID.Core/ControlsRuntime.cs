@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -279,7 +278,11 @@ namespace ULTRADROID.Core
             if (clone == null || config == null)
                 return;
 
-            // 1. Load the requested icon.
+            // 1. Hide the original template visuals FIRST.
+            // The custom icon and label are applied afterwards.
+            HideOriginalVisuals(clone);
+
+            // 2. Resolve the requested icon.
             Sprite icon = null;
 
             if (!string.IsNullOrEmpty(config.IconPath))
@@ -291,7 +294,7 @@ namespace ULTRADROID.Core
             if (icon == null)
                 icon = LoadFallbackIcon(config.Id);
 
-            // 2. Apply optional tint.
+            // 3. Apply the optional tint to the cloned graphics.
             if (config.ApplyTint)
             {
                 foreach (Graphic graphic in
@@ -302,7 +305,7 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // 3. Apply the icon.
+            // 4. Apply the custom icon.
             if (icon != null)
             {
                 Image[] images =
@@ -341,7 +344,6 @@ namespace ULTRADROID.Core
 
                         if (rootImage != null)
                         {
-                            rootImage.color = Color.white;
                             rootImage.preserveAspect = true;
                             rootImage.raycastTarget = true;
                             rootImage.enabled = true;
@@ -354,9 +356,11 @@ namespace ULTRADROID.Core
                             UnityEngine.Object.Destroy(iconGo);
                         }
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Keep the button working if icon creation fails.
+                        ControlsRuntimeLog.Error(
+                            "[ULTRADROID] Failed to create icon object: " +
+                            ex.Message);
                     }
                 }
 
@@ -366,7 +370,10 @@ namespace ULTRADROID.Core
 
                     image.sprite = icon;
                     image.preserveAspect = true;
-                    image.color = Color.white;
+                    image.color = config.ApplyTint
+                        ? config.Tint
+                        : Color.white;
+
                     image.enabled = true;
                     image.gameObject.SetActive(true);
 
@@ -375,10 +382,7 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // 4. Hide the cloned button's original visuals.
-            HideOriginalVisuals(clone);
-
-            // 5. Set the label.
+            // 5. Restore the configured label AFTER hiding original visuals.
             if (!string.IsNullOrEmpty(config.Label))
             {
                 Text[] labels =
@@ -802,4 +806,3 @@ namespace ULTRADROID.Core
         }
     }
 }
-
