@@ -17,6 +17,10 @@
       <HintPath>../../lib/BepInEx.Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>../../lib/Unity.TextMeshPro.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="BepInEx.Unity.IL2CPP">
       <HintPath>../../lib/BepInEx.Unity.IL2CPP.dll</HintPath>
       <Private>false</Private>
