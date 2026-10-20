@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -247,7 +246,7 @@ namespace ULTRADROID.Core
 
             ApplyVisuals(clone, config);
 
-            // Diagnostic-only inspection: this does not modify the HUD.
+            // Diagnostic-only inspection.
             LogVisibilityDiagnostics(clone);
 
             BindClick(clone, registration);
@@ -500,48 +499,46 @@ namespace ULTRADROID.Core
             clone.SetActive(true);
         }
 
-    private void HideOriginalVisuals(GameObject clone)
-    {
-        if (clone == null)
-            return;
-
-        // Keep the original Images enabled temporarily.
-        // The previous version disabled every Image, which may
-        // have removed the only visible background of the button.
-        foreach (Image image in
-                 clone.GetComponentsInChildren<Image>(true))
+        // TEMPORARY DIAGNOSTIC:
+        // Keep original visuals enabled to test whether hiding them
+        // was the reason the custom button was invisible.
+        private void HideOriginalVisuals(GameObject clone)
         {
-            if (image == null)
-                continue;
+            if (clone == null)
+                return;
 
-            image.enabled = true;
-            image.gameObject.SetActive(true);
-        }
+            foreach (Image image in
+                     clone.GetComponentsInChildren<Image>(true))
+            {
+                if (image == null)
+                    continue;
 
-        // Preserve legacy Text labels.
-        foreach (Text text in
-                 clone.GetComponentsInChildren<Text>(true))
-        {
-            if (text == null)
-                continue;
+                image.enabled = true;
+                image.gameObject.SetActive(true);
+            }
 
-            text.enabled = true;
-            text.gameObject.SetActive(true);
-        }
-
-        // Preserve TMP labels.
-        foreach (TMPro.TMP_Text text in
-                 clone.GetComponentsInChildren<TMPro.TMP_Text>(true))
-        {
-            if (text == null)
-                continue;
+            foreach (Text text in
+                     clone.GetComponentsInChildren<Text>(true))
+            {
+                if (text == null)
+                    continue;
 
                 text.enabled = true;
                 text.gameObject.SetActive(true);
-        }
+            }
 
-        clone.SetActive(true);
-    }
+            foreach (TMP_Text text in
+                     clone.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (text == null)
+                    continue;
+
+                text.enabled = true;
+                text.gameObject.SetActive(true);
+            }
+
+            clone.SetActive(true);
+        }
 
         private Sprite LoadIconFromPath(string path)
         {
