@@ -500,41 +500,48 @@ namespace ULTRADROID.Core
             clone.SetActive(true);
         }
 
-        private void HideOriginalVisuals(GameObject clone)
+    private void HideOriginalVisuals(GameObject clone)
+    {
+        if (clone == null)
+            return;
+
+        // Keep the original Images enabled temporarily.
+        // The previous version disabled every Image, which may
+        // have removed the only visible background of the button.
+        foreach (Image image in
+                 clone.GetComponentsInChildren<Image>(true))
         {
-            if (clone == null)
-                return;
+            if (image == null)
+                continue;
 
-            foreach (Image image in
-                     clone.GetComponentsInChildren<Image>(true))
-            {
-                if (image == null ||
-                    image.gameObject.name == "ULTRADROID_Icon")
-                    continue;
-
-                image.enabled = false;
-            }
-
-            foreach (Text text in
-                     clone.GetComponentsInChildren<Text>(true))
-            {
-                if (text != null)
-                    text.enabled = false;
-            }
-
-            foreach (Graphic graphic in
-                     clone.GetComponentsInChildren<Graphic>(true))
-            {
-                if (graphic == null ||
-                    graphic.gameObject.name == "ULTRADROID_Icon" ||
-                    graphic is TMP_Text)
-                    continue;
-
-                graphic.enabled = false;
-            }
-
-            clone.SetActive(true);
+            image.enabled = true;
+            image.gameObject.SetActive(true);
         }
+
+        // Preserve legacy Text labels.
+        foreach (Text text in
+                 clone.GetComponentsInChildren<Text>(true))
+        {
+            if (text == null)
+                continue;
+
+            text.enabled = true;
+            text.gameObject.SetActive(true);
+        }
+
+        // Preserve TMP labels.
+        foreach (TMPro.TMP_Text text in
+                 clone.GetComponentsInChildren<TMPro.TMP_Text>(true))
+        {
+            if (text == null)
+                continue;
+
+                text.enabled = true;
+                text.gameObject.SetActive(true);
+        }
+
+        clone.SetActive(true);
+    }
 
         private Sprite LoadIconFromPath(string path)
         {
