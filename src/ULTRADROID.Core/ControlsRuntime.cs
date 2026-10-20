@@ -246,6 +246,10 @@ namespace ULTRADROID.Core
                 rect.anchoredPosition += config.PositionOffset;
 
             ApplyVisuals(clone, config);
+
+            // Diagnostic-only inspection: this does not modify the HUD.
+            LogVisibilityDiagnostics(clone);
+
             BindClick(clone, registration);
 
             if (!ContainsButton(manager, control))
@@ -274,6 +278,93 @@ namespace ULTRADROID.Core
             return runtimeButton;
         }
 
+        private void LogVisibilityDiagnostics(GameObject clone)
+        {
+            if (clone == null)
+                return;
+
+            try
+            {
+                RectTransform rt = clone.GetComponent<RectTransform>();
+                Canvas canvas = clone.GetComponentInParent<Canvas>();
+
+                ControlsRuntimeLog.Info(
+                    "[W7 DEBUG] Root=" + clone.name +
+                    " | activeSelf=" + clone.activeSelf +
+                    " | activeInHierarchy=" + clone.activeInHierarchy);
+
+                ControlsRuntimeLog.Info(
+                    "[W7 DEBUG] Parent=" +
+                    (clone.transform.parent != null
+                        ? clone.transform.parent.name
+                        : "NULL") +
+                    " | localPosition=" + clone.transform.localPosition +
+                    " | localScale=" + clone.transform.localScale);
+
+                if (rt != null)
+                {
+                    ControlsRuntimeLog.Info(
+                        "[W7 DEBUG] anchoredPosition=" +
+                        rt.anchoredPosition +
+                        " | rectSize=" + rt.rect.size +
+                        " | anchorMin=" + rt.anchorMin +
+                        " | anchorMax=" + rt.anchorMax);
+                }
+                else
+                {
+                    ControlsRuntimeLog.Info(
+                        "[W7 DEBUG] WARNING: no RectTransform");
+                }
+
+                if (canvas != null)
+                {
+                    ControlsRuntimeLog.Info(
+                        "[W7 DEBUG] Canvas=" + canvas.name +
+                        " | enabled=" + canvas.enabled +
+                        " | active=" + canvas.gameObject.activeInHierarchy +
+                        " | renderMode=" + canvas.renderMode);
+                }
+                else
+                {
+                    ControlsRuntimeLog.Info(
+                        "[W7 DEBUG] WARNING: no parent Canvas found");
+                }
+
+                foreach (Graphic graphic in
+                         clone.GetComponentsInChildren<Graphic>(true))
+                {
+                    if (graphic == null)
+                        continue;
+
+                    ControlsRuntimeLog.Info(
+                        "[W7 DEBUG] Graphic=" +
+                        graphic.GetType().FullName +
+                        " | object=" + graphic.gameObject.name +
+                        " | enabled=" + graphic.enabled +
+                        " | active=" + graphic.gameObject.activeInHierarchy +
+                        " | color=" + graphic.color);
+                }
+
+                foreach (TMP_Text label in
+                         clone.GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (label == null)
+                        continue;
+
+                    ControlsRuntimeLog.Info(
+                        "[W7 DEBUG] TMP=" + label.gameObject.name +
+                        " | text=" + label.text +
+                        " | enabled=" + label.enabled +
+                        " | active=" + label.gameObject.activeInHierarchy);
+                }
+            }
+            catch (Exception ex)
+            {
+                ControlsRuntimeLog.Error(
+                    "[W7 DEBUG] Inspection failed: " + ex);
+            }
+        }
+
         private void ApplyVisuals(
             GameObject clone,
             ButtonConfig config)
@@ -299,11 +390,8 @@ namespace ULTRADROID.Core
                 foreach (Graphic graphic in
                          clone.GetComponentsInChildren<Graphic>(true))
                 {
-                    if (graphic != null &&
-                        !(graphic is TMP_Text))
-                    {
+                    if (graphic != null)
                         graphic.color = config.Tint;
-                    }
                 }
             }
 
@@ -321,8 +409,7 @@ namespace ULTRADROID.Core
                         GameObject iconGo =
                             new GameObject("ULTRADROID_Icon");
 
-                        iconGo.transform.SetParent(
-                            clone.transform, false);
+                        iconGo.transform.SetParent(clone.transform, false);
 
                         RectTransform rt =
                             iconGo.AddComponent<RectTransform>();
@@ -337,11 +424,7 @@ namespace ULTRADROID.Core
                             rt.localPosition = Vector3.zero;
                         }
 
-                        Image rootImage =
-                            iconGo.AddComponent<Image>();
-
-                        if (rootImage == null)
-                            rootImage = iconGo.GetComponent<Image>();
+                        Image rootImage = iconGo.AddComponent<Image>();
 
                         if (rootImage != null)
                         {
@@ -383,49 +466,34 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // Legacy Unity UI Text support.
             if (!string.IsNullOrEmpty(config.Label))
             {
-                Text[] labels =
-                    clone.GetComponentsInChildren<Text>(true);
-
-                if (labels != null)
+                foreach (Text label in
+                         clone.GetComponentsInChildren<Text>(true))
                 {
-                    foreach (Text label in labels)
-                    {
-                        if (label == null)
-                            continue;
+                    if (label == null)
+                        continue;
 
-                        label.text = config.Label;
-                        label.enabled = true;
-                        label.gameObject.SetActive(true);
-                        label.color = config.ApplyTint
-                            ? config.Tint
-                            : Color.white;
-                    }
+                    label.text = config.Label;
+                    label.enabled = true;
+                    label.gameObject.SetActive(true);
+                    label.color = config.ApplyTint
+                        ? config.Tint
+                        : Color.white;
                 }
-            }
 
-            // TextMeshPro and TextMeshProUGUI support.
-            if (!string.IsNullOrEmpty(config.Label))
-            {
-                TMP_Text[] tmpLabels =
-                    clone.GetComponentsInChildren<TMP_Text>(true);
-
-                if (tmpLabels != null)
+                foreach (TMP_Text label in
+                         clone.GetComponentsInChildren<TMP_Text>(true))
                 {
-                    foreach (TMP_Text tmpLabel in tmpLabels)
-                    {
-                        if (tmpLabel == null)
-                            continue;
+                    if (label == null)
+                        continue;
 
-                        tmpLabel.text = config.Label;
-                        tmpLabel.enabled = true;
-                        tmpLabel.gameObject.SetActive(true);
-                        tmpLabel.color = config.ApplyTint
-                            ? config.Tint
-                            : Color.white;
-                    }
+                    label.text = config.Label;
+                    label.enabled = true;
+                    label.gameObject.SetActive(true);
+                    label.color = config.ApplyTint
+                        ? config.Tint
+                        : Color.white;
                 }
             }
 
@@ -442,9 +510,7 @@ namespace ULTRADROID.Core
             {
                 if (image == null ||
                     image.gameObject.name == "ULTRADROID_Icon")
-                {
                     continue;
-                }
 
                 image.enabled = false;
             }
@@ -452,23 +518,17 @@ namespace ULTRADROID.Core
             foreach (Text text in
                      clone.GetComponentsInChildren<Text>(true))
             {
-                if (text == null)
-                    continue;
-
-                text.enabled = false;
+                if (text != null)
+                    text.enabled = false;
             }
 
-            // Hide other graphics, but preserve TMP text so it can
-            // be configured and enabled by ApplyVisuals().
             foreach (Graphic graphic in
                      clone.GetComponentsInChildren<Graphic>(true))
             {
                 if (graphic == null ||
                     graphic.gameObject.name == "ULTRADROID_Icon" ||
                     graphic is TMP_Text)
-                {
                     continue;
-                }
 
                 graphic.enabled = false;
             }
@@ -540,9 +600,7 @@ namespace ULTRADROID.Core
                     id,
                     "ULTRADROID.Example.Demo",
                     StringComparison.Ordinal))
-            {
                 return null;
-            }
 
             if (fallbackDemoIcon != null)
                 return fallbackDemoIcon;
@@ -598,10 +656,8 @@ namespace ULTRADROID.Core
                 return;
             }
 
-            for (int i = 0; i < buttons.Length; i++)
+            foreach (Button button in buttons)
             {
-                Button button = buttons[i];
-
                 if (button == null)
                     continue;
 
@@ -654,9 +710,7 @@ namespace ULTRADROID.Core
         {
             if (manager == null ||
                 rb?.Control?.gameObject == null)
-            {
                 return;
-            }
 
             RegisterBaseScale(manager, rb);
 
@@ -665,17 +719,13 @@ namespace ULTRADROID.Core
             if (float.IsNaN(factor) ||
                 float.IsInfinity(factor) ||
                 Mathf.Abs(factor) <= 0.001f)
-            {
                 return;
-            }
 
             Vector3 target = rb.BaseScale * factor;
 
             if ((rb.Control.transform.localScale - target).sqrMagnitude >
                 0.000001f)
-            {
                 rb.Control.transform.localScale = target;
-            }
         }
 
         private void RegisterBaseScale(
@@ -684,9 +734,7 @@ namespace ULTRADROID.Core
         {
             if (manager?.baseScaleLookup == null ||
                 rb?.Control?.gameObject == null)
-            {
                 return;
-            }
 
             string key = rb.Control.gameObject.name;
 
@@ -722,9 +770,7 @@ namespace ULTRADROID.Core
             if (!float.IsNaN(factor) &&
                 !float.IsInfinity(factor) &&
                 Mathf.Abs(factor) > 0.001f)
-            {
                 scale /= factor;
-            }
 
             return TouchManager.SafeScale(scale);
         }
@@ -768,9 +814,7 @@ namespace ULTRADROID.Core
             if (manager?.baseScaleLookup != null &&
                 clone != null &&
                 manager.baseScaleLookup.ContainsKey(clone.name))
-            {
                 manager.baseScaleLookup.Remove(clone.name);
-            }
 
             if (clone != null)
                 UnityEngine.Object.Destroy(clone);
