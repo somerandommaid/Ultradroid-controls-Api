@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -59,7 +60,6 @@ namespace ULTRADROID.Core
                 TouchManager manager =
                     UnityEngine.Object.FindObjectOfType<TouchManager>();
 
-                // Clean up stale buttons when the game changes scenes.
                 if (manager == null)
                 {
                     if (activeButtons.Count > 0)
@@ -70,11 +70,9 @@ namespace ULTRADROID.Core
                     return;
                 }
 
-                // Remove buttons owned by the previous TouchManager.
                 if (activeManager != manager)
                     ResetForManager(manager);
 
-                // Wait until the game's native touch buttons are ready.
                 if (manager.buttons == null || manager.buttons.Count == 0)
                     return;
 
@@ -104,7 +102,6 @@ namespace ULTRADROID.Core
         {
             TouchManager previousManager = activeManager;
 
-            // Copy IDs first because removal modifies activeButtons.
             if (activeButtons.Count > 0)
             {
                 string[] ids = new string[activeButtons.Count];
@@ -158,6 +155,9 @@ namespace ULTRADROID.Core
                 {
                     activeButtons[id] = created;
                     createdAny = true;
+
+                    ControlsRuntimeLog.Info(
+                        "[ULTRADROID] Created HUD button: " + id);
                 }
             }
 
@@ -230,7 +230,6 @@ namespace ULTRADROID.Core
 
             try
             {
-                // ULTRADROID buttons use their own click callbacks.
                 control.enabled = false;
                 control.controlPathInternal = string.Empty;
             }
@@ -268,6 +267,9 @@ namespace ULTRADROID.Core
                 registration.Handle.IsReady = true;
             }
 
+            ControlsRuntimeLog.Info(
+                "[ULTRADROID] HUD button ready: " + config.Id);
+
             return runtimeButton;
         }
 
@@ -278,11 +280,8 @@ namespace ULTRADROID.Core
             if (clone == null || config == null)
                 return;
 
-            // 1. Hide the original template visuals FIRST.
-            // The custom icon and label are applied afterwards.
             HideOriginalVisuals(clone);
 
-            // 2. Resolve the requested icon.
             Sprite icon = null;
 
             if (!string.IsNullOrEmpty(config.IconPath))
@@ -294,7 +293,6 @@ namespace ULTRADROID.Core
             if (icon == null)
                 icon = LoadFallbackIcon(config.Id);
 
-            // 3. Apply the optional tint to the cloned graphics.
             if (config.ApplyTint)
             {
                 foreach (Graphic graphic in
@@ -305,7 +303,6 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // 4. Apply the custom icon.
             if (icon != null)
             {
                 Image[] images =
@@ -382,7 +379,6 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // 5. Restore the configured label AFTER hiding original visuals.
             if (!string.IsNullOrEmpty(config.Label))
             {
                 Text[] labels =
@@ -397,8 +393,14 @@ namespace ULTRADROID.Core
                     labels[0].gameObject.SetActive(true);
                 }
             }
+
+            // Ensure the button root stays active after styling.
+            clone.SetActive(true);
         }
 
+        // FIX: Disable original graphics, but never deactivate their
+        // GameObjects. The original code could deactivate the root button
+        // if a graphic or label lived on the root itself.
         private void HideOriginalVisuals(GameObject clone)
         {
             if (clone == null)
@@ -414,7 +416,6 @@ namespace ULTRADROID.Core
                 }
 
                 image.enabled = false;
-                image.gameObject.SetActive(false);
             }
 
             foreach (Text text in
@@ -424,7 +425,6 @@ namespace ULTRADROID.Core
                     continue;
 
                 text.enabled = false;
-                text.gameObject.SetActive(false);
             }
 
             foreach (Graphic graphic in
@@ -438,6 +438,8 @@ namespace ULTRADROID.Core
 
                 graphic.enabled = false;
             }
+
+            clone.SetActive(true);
         }
 
         private Sprite LoadIconFromPath(string path)
@@ -483,7 +485,6 @@ namespace ULTRADROID.Core
                     return null;
                 }
 
-                // Keep Unity objects alive for IL2CPP.
                 keepAlive.Add(texture);
                 keepAlive.Add(sprite);
 
@@ -796,6 +797,14 @@ namespace ULTRADROID.Core
     internal static class ControlsRuntimeLog
     {
         internal static ManualLogSource Source;
+
+        internal static void Info(string message)
+        {
+            if (Source != null)
+                Source.LogInfo(message);
+            else
+                Debug.Log(message);
+        }
 
         internal static void Error(string message)
         {
