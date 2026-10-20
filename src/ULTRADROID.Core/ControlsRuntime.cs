@@ -10,6 +10,7 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem.OnScreen;
 using UnityEngine.UI;
+using TMPro;
 
 namespace ULTRADROID.Core
 {
@@ -298,8 +299,11 @@ namespace ULTRADROID.Core
                 foreach (Graphic graphic in
                          clone.GetComponentsInChildren<Graphic>(true))
                 {
-                    if (graphic != null)
+                    if (graphic != null &&
+                        !(graphic is TMP_Text))
+                    {
                         graphic.color = config.Tint;
+                    }
                 }
             }
 
@@ -379,28 +383,55 @@ namespace ULTRADROID.Core
                 }
             }
 
+            // Legacy Unity UI Text support.
             if (!string.IsNullOrEmpty(config.Label))
             {
                 Text[] labels =
                     clone.GetComponentsInChildren<Text>(true);
 
-                if (labels != null &&
-                    labels.Length > 0 &&
-                    labels[0] != null)
+                if (labels != null)
                 {
-                    labels[0].text = config.Label;
-                    labels[0].enabled = true;
-                    labels[0].gameObject.SetActive(true);
+                    foreach (Text label in labels)
+                    {
+                        if (label == null)
+                            continue;
+
+                        label.text = config.Label;
+                        label.enabled = true;
+                        label.gameObject.SetActive(true);
+                        label.color = config.ApplyTint
+                            ? config.Tint
+                            : Color.white;
+                    }
                 }
             }
 
-            // Ensure the button root stays active after styling.
+            // TextMeshPro and TextMeshProUGUI support.
+            if (!string.IsNullOrEmpty(config.Label))
+            {
+                TMP_Text[] tmpLabels =
+                    clone.GetComponentsInChildren<TMP_Text>(true);
+
+                if (tmpLabels != null)
+                {
+                    foreach (TMP_Text tmpLabel in tmpLabels)
+                    {
+                        if (tmpLabel == null)
+                            continue;
+
+                        tmpLabel.text = config.Label;
+                        tmpLabel.enabled = true;
+                        tmpLabel.gameObject.SetActive(true);
+                        tmpLabel.color = config.ApplyTint
+                            ? config.Tint
+                            : Color.white;
+                    }
+                }
+            }
+
             clone.SetActive(true);
         }
 
-        // FIX: Disable original graphics, but never deactivate their
-        // GameObjects. The original code could deactivate the root button
-        // if a graphic or label lived on the root itself.
         private void HideOriginalVisuals(GameObject clone)
         {
             if (clone == null)
@@ -427,11 +458,14 @@ namespace ULTRADROID.Core
                 text.enabled = false;
             }
 
+            // Hide other graphics, but preserve TMP text so it can
+            // be configured and enabled by ApplyVisuals().
             foreach (Graphic graphic in
                      clone.GetComponentsInChildren<Graphic>(true))
             {
                 if (graphic == null ||
-                    graphic.gameObject.name == "ULTRADROID_Icon")
+                    graphic.gameObject.name == "ULTRADROID_Icon" ||
+                    graphic is TMP_Text)
                 {
                     continue;
                 }
