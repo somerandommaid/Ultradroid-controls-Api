@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -246,7 +247,6 @@ namespace ULTRADROID.Core
 
             ApplyVisuals(clone, config);
 
-            // Diagnostic-only inspection.
             LogVisibilityDiagnostics(clone);
 
             BindClick(clone, registration);
@@ -356,6 +356,19 @@ namespace ULTRADROID.Core
                         " | enabled=" + label.enabled +
                         " | active=" + label.gameObject.activeInHierarchy);
                 }
+
+                foreach (Text label in
+                         clone.GetComponentsInChildren<Text>(true))
+                {
+                    if (label == null)
+                        continue;
+
+                    ControlsRuntimeLog.Info(
+                        "[W7 DEBUG] LegacyText=" + label.gameObject.name +
+                        " | text=" + label.text +
+                        " | enabled=" + label.enabled +
+                        " | active=" + label.gameObject.activeInHierarchy);
+                }
             }
             catch (Exception ex)
             {
@@ -371,6 +384,8 @@ namespace ULTRADROID.Core
             if (clone == null || config == null)
                 return;
 
+            // Preserve the existing visuals. Hiding them made the
+            // custom button invisible during the previous test.
             HideOriginalVisuals(clone);
 
             Sprite icon = null;
@@ -428,7 +443,7 @@ namespace ULTRADROID.Core
                         if (rootImage != null)
                         {
                             rootImage.preserveAspect = true;
-                            rootImage.raycastTarget = true;
+                            rootImage.raycastTarget = false;
                             rootImage.enabled = true;
 
                             images = new[] { rootImage };
@@ -460,13 +475,15 @@ namespace ULTRADROID.Core
                     image.enabled = true;
                     image.gameObject.SetActive(true);
 
-                    image.raycastTarget =
-                        addedRootImage || image.raycastTarget;
+                    if (addedRootImage)
+                        image.raycastTarget = false;
                 }
             }
 
             if (!string.IsNullOrEmpty(config.Label))
             {
+                bool foundLabel = false;
+
                 foreach (Text label in
                          clone.GetComponentsInChildren<Text>(true))
                 {
@@ -479,6 +496,9 @@ namespace ULTRADROID.Core
                     label.color = config.ApplyTint
                         ? config.Tint
                         : Color.white;
+                    label.raycastTarget = false;
+
+                    foundLabel = true;
                 }
 
                 foreach (TMP_Text label in
@@ -493,20 +513,114 @@ namespace ULTRADROID.Core
                     label.color = config.ApplyTint
                         ? config.Tint
                         : Color.white;
+                    label.raycastTarget = false;
+
+                    foundLabel = true;
                 }
+
+                // The cloned Fire button may not contain a text component.
+                // Create a separate label instead of replacing its visuals.
+                if (!foundLabel)
+                    CreateLegacyLabel(clone, config.Label, config);
             }
 
             clone.SetActive(true);
         }
 
-        // TEMPORARY DIAGNOSTIC:
-        // Keep original visuals enabled to test whether hiding them
-        // was the reason the custom button was invisible.
+        private void CreateLegacyLabel(
+            GameObject clone,
+            string labelText,
+            ButtonConfig config)
+        {
+            if (clone == null || string.IsNullOrEmpty(labelText))
+                return;
+
+            GameObject labelObject = null;
+
+            try
+            {
+                labelObject = new GameObject(
+                    "ULTRADROID_Label",
+                    typeof(RectTransform));
+
+                labelObject.transform.SetParent(clone.transform, false);
+
+                RectTransform rect =
+                    labelObject.GetComponent<RectTransform>();
+
+                if (rect != null)
+                {
+                    rect.anchorMin = Vector2.zero;
+                    rect.anchorMax = Vector2.one;
+                    rect.pivot = new Vector2(0.5f, 0.5f);
+                    rect.anchoredPosition = Vector2.zero;
+                    rect.sizeDelta = Vector2.zero;
+                    rect.localScale = Vector3.one;
+                    rect.localRotation = Quaternion.identity;
+                }
+
+                Text label = labelObject.AddComponent<Text>();
+
+                if (label == null)
+                {
+                    ControlsRuntimeLog.Error(
+                        "[ULTRADROID] Could not create UI Text for label: " +
+                        labelText);
+                    UnityEngine.Object.Destroy(labelObject);
+                    return;
+                }
+
+                Font builtinFont =
+                    Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+                if (builtinFont == null)
+                {
+                    ControlsRuntimeLog.Error(
+                        "[ULTRADROID] Built-in Arial font was unavailable.");
+                    UnityEngine.Object.Destroy(labelObject);
+                    return;
+                }
+
+                label.font = builtinFont;
+                label.text = labelText;
+                label.fontSize = 18;
+                label.fontStyle = FontStyle.Bold;
+                label.alignment = TextAnchor.MiddleCenter;
+                label.horizontalOverflow = HorizontalWrapMode.Overflow;
+                label.verticalOverflow = VerticalWrapMode.Overflow;
+                label.resizeTextForBestFit = true;
+                label.resizeTextMinSize = 12;
+                label.resizeTextMaxSize = 24;
+                label.color = config.ApplyTint
+                    ? config.Tint
+                    : Color.white;
+                label.raycastTarget = false;
+                label.supportRichText = false;
+                label.enabled = true;
+
+                labelObject.SetActive(true);
+
+                ControlsRuntimeLog.Info(
+                    "[ULTRADROID] Created label '" + labelText +
+                    "' on " + clone.name);
+            }
+            catch (Exception ex)
+            {
+                if (labelObject != null)
+                    UnityEngine.Object.Destroy(labelObject);
+
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] Failed to create label '" +
+                    labelText + "': " + ex);
+            }
+        }
+
         private void HideOriginalVisuals(GameObject clone)
         {
             if (clone == null)
                 return;
 
+            // Intentionally preserve the original cloned visuals.
             foreach (Image image in
                      clone.GetComponentsInChildren<Image>(true))
             {
