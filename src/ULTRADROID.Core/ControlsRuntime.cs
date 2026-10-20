@@ -384,8 +384,7 @@ namespace ULTRADROID.Core
             if (clone == null || config == null)
                 return;
 
-            // Preserve the existing visuals. Hiding them made the
-            // custom button invisible during the previous test.
+            // Preserve the existing visible button graphics.
             HideOriginalVisuals(clone);
 
             Sprite icon = null;
@@ -518,8 +517,6 @@ namespace ULTRADROID.Core
                     foundLabel = true;
                 }
 
-                // The cloned Fire button may not contain a text component.
-                // Create a separate label instead of replacing its visuals.
                 if (!foundLabel)
                     CreateLegacyLabel(clone, config.Label, config);
             }
@@ -539,14 +536,13 @@ namespace ULTRADROID.Core
 
             try
             {
-                labelObject = new GameObject(
-                    "ULTRADROID_Label",
-                    typeof(RectTransform));
+                // IL2CPP-compatible: use the name-only constructor.
+                labelObject = new GameObject("ULTRADROID_Label");
 
                 labelObject.transform.SetParent(clone.transform, false);
 
                 RectTransform rect =
-                    labelObject.GetComponent<RectTransform>();
+                    labelObject.AddComponent<RectTransform>();
 
                 if (rect != null)
                 {
@@ -566,6 +562,7 @@ namespace ULTRADROID.Core
                     ControlsRuntimeLog.Error(
                         "[ULTRADROID] Could not create UI Text for label: " +
                         labelText);
+
                     UnityEngine.Object.Destroy(labelObject);
                     return;
                 }
@@ -577,6 +574,7 @@ namespace ULTRADROID.Core
                 {
                     ControlsRuntimeLog.Error(
                         "[ULTRADROID] Built-in Arial font was unavailable.");
+
                     UnityEngine.Object.Destroy(labelObject);
                     return;
                 }
@@ -620,7 +618,7 @@ namespace ULTRADROID.Core
             if (clone == null)
                 return;
 
-            // Intentionally preserve the original cloned visuals.
+            // Keep the existing visuals enabled so the button remains visible.
             foreach (Image image in
                      clone.GetComponentsInChildren<Image>(true))
             {
