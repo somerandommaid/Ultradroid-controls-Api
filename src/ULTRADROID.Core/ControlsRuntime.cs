@@ -253,7 +253,7 @@ namespace ULTRADROID.Core
 
             LogVisibilityDiagnostics(clone);
 
-            BindClick(clone, registration);
+            BindClick(clone, registration, manager);
 
             if (!ContainsButton(manager, control))
                 manager.buttons.Add(control);
@@ -733,8 +733,12 @@ namespace ULTRADROID.Core
 
         private void BindClick(
             GameObject clone,
-            ButtonRegistration registration)
+            ButtonRegistration registration,
+            TouchManager manager)
         {
+            if (clone == null || registration == null)
+                return;
+
             Button[] buttons =
                 clone.GetComponentsInChildren<Button>(true);
 
@@ -753,27 +757,7 @@ namespace ULTRADROID.Core
                 if (target != null)
                     added.targetGraphic = target;
 
-                added.onClick.RemoveAllListeners();
-
-                Action click = () =>
-                {
-                    try
-                    {
-                        registration.Config?.OnClick?.Invoke();
-                    }
-                    catch (Exception ex)
-                    {
-                        ControlsRuntimeLog.Error(
-                            "[ULTRADROID] Button callback failed: " + ex);
-                    }
-                };
-
-                UnityAction unityAction =
-                    Il2CppInterop.Runtime.DelegateSupport
-                        .ConvertDelegate<UnityAction>(click);
-
-                added.onClick.AddListener(unityAction);
-                return;
+                buttons = new[] { added };
             }
 
             foreach (Button button in buttons)
@@ -787,6 +771,14 @@ namespace ULTRADROID.Core
                 {
                     try
                     {
+                        // Never run the custom action while editing controls.
+                        if (IsLayoutEditorActive(manager))
+                            return;
+
+                        // Also prevent clicks from being processed behind menus.
+                        if (IsGameplayMenuOpen())
+                            return;
+
                         registration.Config?.OnClick?.Invoke();
                     }
                     catch (Exception ex)
@@ -824,6 +816,51 @@ namespace ULTRADROID.Core
             }
         }
 
+        private bool IsLayoutEditorActive(TouchManager manager)
+        {
+            if (manager == null)
+                return false;
+
+            // The End Edit button is expected to be active while editing.
+            try
+            {
+                return manager.endedit != null &&
+                       manager.endedit.activeInHierarchy;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool IsGameplayMenuOpen()
+        {
+            try
+            {
+                OptionsManager options = OptionsManager.Instance;
+
+                if (options == null)
+                    return false;
+
+                if (options.mainMenu || options.paused)
+                    return true;
+
+                if (options.optionsMenu != null &&
+                    options.optionsMenu.activeInHierarchy)
+                    return true;
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] Could not read menu state: " + ex.Message);
+
+                // Fail open rather than permanently hiding the buttons.
+                return false;
+            }
+        }
+
         private void ApplyVisibility(RuntimeButton runtimeButton)
         {
             if (runtimeButton?.Registration?.Config == null)
@@ -835,6 +872,24 @@ namespace ULTRADROID.Core
 
             if (buttonObject == null)
                 return;
+
+            // Editing takes priority over pause/menu hiding and IsVisible.
+            if (IsLayoutEditorActive(activeManager))
+            {
+                if (!buttonObject.activeSelf)
+                    buttonObject.SetActive(true);
+
+                return;
+            }
+
+            // Hide custom buttons whenever a menu is open.
+            if (IsGameplayMenuOpen())
+            {
+                if (buttonObject.activeSelf)
+                    buttonObject.SetActive(false);
+
+                return;
+            }
 
             bool visible = true;
 
@@ -853,7 +908,7 @@ namespace ULTRADROID.Core
                     runtimeButton.Registration.Config.Id +
                     "': " + ex);
 
-                // Leave the current visibility unchanged on failure.
+                // Preserve current visibility if the predicate fails.
                 return;
             }
 
