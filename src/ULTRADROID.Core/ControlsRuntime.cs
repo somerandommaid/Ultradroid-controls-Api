@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -80,7 +79,10 @@ namespace ULTRADROID.Core
                 SynchronizeButtons(manager);
 
                 foreach (RuntimeButton runtimeButton in activeButtons.Values)
+                {
+                    ApplyVisibility(runtimeButton);
                     MaintainScale(manager, runtimeButton);
+                }
 
                 lastReportedError = string.Empty;
             }
@@ -156,6 +158,8 @@ namespace ULTRADROID.Core
                 {
                     activeButtons[id] = created;
                     createdAny = true;
+
+                    ApplyVisibility(created);
 
                     ControlsRuntimeLog.Info(
                         "[ULTRADROID] Created HUD button: " + id);
@@ -818,6 +822,43 @@ namespace ULTRADROID.Core
             {
                 // Layout restoration is best-effort.
             }
+        }
+
+        private void ApplyVisibility(RuntimeButton runtimeButton)
+        {
+            if (runtimeButton?.Registration?.Config == null)
+                return;
+
+            GameObject buttonObject = runtimeButton.Control != null
+                ? runtimeButton.Control.gameObject
+                : null;
+
+            if (buttonObject == null)
+                return;
+
+            bool visible = true;
+
+            try
+            {
+                Func<bool> predicate =
+                    runtimeButton.Registration.Config.IsVisible;
+
+                if (predicate != null)
+                    visible = predicate();
+            }
+            catch (Exception ex)
+            {
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] Visibility check failed for '" +
+                    runtimeButton.Registration.Config.Id +
+                    "': " + ex);
+
+                // Leave the current visibility unchanged on failure.
+                return;
+            }
+
+            if (buttonObject.activeSelf != visible)
+                buttonObject.SetActive(visible);
         }
 
         private void MaintainScale(
