@@ -294,21 +294,21 @@ namespace ULTRADROID.Core
                 return null;
             }
 
-            if (manager.inGameButtons == null)
+            if (manager.inGameButtons == null ||
+                manager.inGameButtons.Count == 0)
             {
-                LogTemplateFailure(id, "TouchManager.inGameButtons is null.");
-                return null;
-            }
+                LogTemplateFailure(
+                    id,
+                    "inGameButtons is null or empty.");
 
-            if (manager.inGameButtons.Count == 0)
-            {
-                LogTemplateFailure(id, "inGameButtons is empty.");
                 return null;
             }
 
             GameObject sourceObject = null;
             OnScreenButton source = null;
 
+            // Search both the list entry and its descendants.
+            // The game puts OnScreenButton on a child of "InGame".
             foreach (GameObject candidate in manager.inGameButtons)
             {
                 if (candidate == null)
@@ -317,21 +317,26 @@ namespace ULTRADROID.Core
                 OnScreenButton found =
                     candidate.GetComponent<OnScreenButton>();
 
-                if (found != null)
+                if (found == null)
                 {
-                    sourceObject = candidate;
-                    source = found;
-                    break;
+                    found = candidate.GetComponentInChildren
+                        <OnScreenButton>(true);
                 }
+
+                if (found == null)
+                    continue;
+
+                source = found;
+                sourceObject = found.gameObject;
+                break;
             }
 
             if (sourceObject == null || source == null)
             {
                 LogTemplateFailure(
                     id,
-                    "No OnScreenButton template found. " +
-                    "inGameButtons count = " +
-                    manager.inGameButtons.Count);
+                    "No OnScreenButton found on or beneath inGameButtons. " +
+                    "Count = " + manager.inGameButtons.Count);
 
                 return null;
             }
@@ -345,28 +350,35 @@ namespace ULTRADROID.Core
 
             string gameObjectName = MakeGameObjectName(config.Id);
             Transform parent = sourceObject.transform.parent;
-            GameObject clone = null;
 
-            if (parent != null)
+            if (parent == null)
             {
-                Transform existing = parent.Find(gameObjectName);
+                LogTemplateFailure(
+                    id,
+                    "The OnScreenButton template has no parent.");
 
-                if (existing != null)
-                    clone = existing.gameObject;
+                return null;
             }
+
+            GameObject clone = null;
+            Transform existing = parent.Find(gameObjectName);
+
+            if (existing != null)
+                clone = existing.gameObject;
 
             bool newlyCloned = clone == null;
 
             if (newlyCloned)
             {
                 clone = UnityEngine.Object.Instantiate(
-                    sourceObject, parent);
+                    sourceObject,
+                    parent,
+                    false);
 
                 if (clone == null)
                     return null;
 
                 clone.name = gameObjectName;
-                clone.SetActive(true);
             }
 
             OnScreenButton control =
@@ -374,7 +386,13 @@ namespace ULTRADROID.Core
 
             if (control == null)
             {
-                UnityEngine.Object.Destroy(clone);
+                if (newlyCloned)
+                    UnityEngine.Object.Destroy(clone);
+
+                LogTemplateFailure(
+                    id,
+                    "Cloned object has no OnScreenButton component.");
+
                 return null;
             }
 
@@ -383,21 +401,35 @@ namespace ULTRADROID.Core
                 control.enabled = false;
                 control.controlPathInternal = string.Empty;
             }
-            catch
+            catch (Exception ex)
             {
-                // Some game versions expose this member differently.
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] Could not disable cloned input binding for '" +
+                    id + "': " + ex.Message);
             }
 
-            RectTransform rect =
+            RectTransform sourceRect =
+                sourceObject.GetComponent<RectTransform>();
+
+            RectTransform cloneRect =
                 clone.GetComponent<RectTransform>();
 
-            if (newlyCloned && rect != null)
-                rect.anchoredPosition += config.PositionOffset;
+            if (newlyCloned && sourceRect != null && cloneRect != null)
+            {
+                cloneRect.anchorMin = sourceRect.anchorMin;
+                cloneRect.anchorMax = sourceRect.anchorMax;
+                cloneRect.pivot = sourceRect.pivot;
+                cloneRect.sizeDelta = sourceRect.sizeDelta;
+                cloneRect.anchoredPosition =
+                    sourceRect.anchoredPosition + config.PositionOffset;
+                cloneRect.localRotation = sourceRect.localRotation;
+            }
 
             ApplyVisuals(clone, config);
             LogVisibilityDiagnostics(clone);
             BindClick(clone, registration, manager);
 
+            // Register only the cloned button, never the whole InGame root.
             if (!manager.inGameButtons.Contains(clone))
                 manager.inGameButtons.Add(clone);
 
@@ -406,8 +438,10 @@ namespace ULTRADROID.Core
             if (!IsUsableScale(baseline))
                 baseline = Vector3.one;
 
-            baseline *= Mathf.Max(0.01f, config.ScaleMultiplier);
-            clone.transform.localScale = baseline;
+            clone.transform.localScale =
+                baseline * Mathf.Max(0.01f, config.ScaleMultiplier);
+
+            clone.SetActive(true);
 
             var runtimeButton =
                 new RuntimeButton(registration, control);
@@ -419,7 +453,9 @@ namespace ULTRADROID.Core
             }
 
             ControlsRuntimeLog.Info(
-                "[ULTRADROID] HUD button ready: " + config.Id);
+                "[ULTRADROID] HUD button ready: " + config.Id +
+                " | source=" + sourceObject.name +
+                " | parent=" + parent.name);
 
             return runtimeButton;
         }
