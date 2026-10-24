@@ -73,16 +73,13 @@ namespace ULTRADROID.Core
                 if (activeManager != manager)
                     ResetForManager(manager);
 
-                if (manager.buttons == null || manager.buttons.Count == 0)
+                if (manager.inGameButtons == null)
                     return;
 
                 SynchronizeButtons(manager);
 
                 foreach (RuntimeButton runtimeButton in activeButtons.Values)
-                {
                     ApplyVisibility(runtimeButton);
-                    MaintainScale(manager, runtimeButton);
-                }
 
                 lastReportedError = string.Empty;
             }
@@ -122,8 +119,6 @@ namespace ULTRADROID.Core
             ButtonRegistration[] registrations =
                 ULTRADROIDControls.GetRegistrations();
 
-            bool createdAny = false;
-
             foreach (ButtonRegistration registration in registrations)
             {
                 if (registration?.Config == null)
@@ -157,7 +152,6 @@ namespace ULTRADROID.Core
                 if (created != null)
                 {
                     activeButtons[id] = created;
-                    createdAny = true;
 
                     ApplyVisibility(created);
 
@@ -166,31 +160,38 @@ namespace ULTRADROID.Core
                 }
             }
 
-            if (createdAny)
-            {
-                ApplySavedLayout(manager);
-
-                foreach (RuntimeButton rb in activeButtons.Values)
-                {
-                    RegisterBaseScale(manager, rb);
-                    MaintainScale(manager, rb);
-                }
-            }
+            // Layout restoration is not implemented for the current TouchManager API.
         }
 
         private RuntimeButton CreateButton(
             TouchManager manager,
             ButtonRegistration registration)
         {
-            if (manager?.buttons == null ||
-                manager.buttons.Count == 0)
+            if (manager?.inGameButtons == null ||
+                manager.inGameButtons.Count == 0)
             {
                 return null;
             }
 
-            OnScreenButton source = manager.buttons[0];
+            GameObject sourceObject = null;
+            OnScreenButton source = null;
 
-            if (source?.gameObject == null)
+            foreach (GameObject candidate in manager.inGameButtons)
+            {
+                if (candidate == null)
+                    continue;
+
+                OnScreenButton found = candidate.GetComponent<OnScreenButton>();
+
+                if (found != null)
+                {
+                    sourceObject = candidate;
+                    source = found;
+                    break;
+                }
+            }
+
+            if (sourceObject == null || source == null)
                 return null;
 
             ButtonConfig config = registration.Config;
@@ -199,7 +200,7 @@ namespace ULTRADROID.Core
                 return null;
 
             string gameObjectName = MakeGameObjectName(config.Id);
-            Transform parent = source.transform.parent;
+            Transform parent = sourceObject.transform.parent;
             GameObject clone = null;
 
             if (parent != null)
@@ -215,7 +216,7 @@ namespace ULTRADROID.Core
             if (newlyCloned)
             {
                 clone = UnityEngine.Object.Instantiate(
-                    source.gameObject, parent);
+                    sourceObject, parent);
 
                 if (clone == null)
                     return null;
@@ -255,19 +256,19 @@ namespace ULTRADROID.Core
 
             BindClick(clone, registration, manager);
 
-            if (!ContainsButton(manager, control))
-                manager.buttons.Add(control);
+            if (!manager.inGameButtons.Contains(clone))
+                manager.inGameButtons.Add(clone);
 
-            Vector3 baseline =
-                GetBaseScale(manager, source) *
-                config.ScaleMultiplier;
+            Vector3 baseline = sourceObject.transform.localScale;
 
-            baseline = TouchManager.SafeScale(baseline);
+            if (!IsUsableScale(baseline))
+                baseline = Vector3.one;
+
+            baseline *= Mathf.Max(0.01f, config.ScaleMultiplier);
+            clone.transform.localScale = baseline;
 
             var runtimeButton =
-                new RuntimeButton(registration, control, baseline);
-
-            RegisterBaseScale(manager, runtimeButton);
+                new RuntimeButton(registration, control);
 
             if (registration.Handle != null)
             {
@@ -796,26 +797,6 @@ namespace ULTRADROID.Core
             }
         }
 
-        private void ApplySavedLayout(TouchManager manager)
-        {
-            try
-            {
-                string key = TouchManager.CurrentLayoutKey;
-
-                if (string.IsNullOrEmpty(key))
-                    return;
-
-                var saved = manager.LoadLayoutFromPrefs(key);
-
-                if (saved != null)
-                    manager.ApplyLayout(saved);
-            }
-            catch
-            {
-                // Layout restoration is best-effort.
-            }
-        }
-
         private bool IsLayoutEditorActive(TouchManager manager)
         {
             if (manager == null)
@@ -824,8 +805,7 @@ namespace ULTRADROID.Core
             // The End Edit button is expected to be active while editing.
             try
             {
-                return manager.endedit != null &&
-                       manager.endedit.activeInHierarchy;
+                return manager.IsEditMode;
             }
             catch
             {
@@ -916,77 +896,6 @@ namespace ULTRADROID.Core
                 buttonObject.SetActive(visible);
         }
 
-        private void MaintainScale(
-            TouchManager manager,
-            RuntimeButton rb)
-        {
-            if (manager == null ||
-                rb?.Control?.gameObject == null)
-                return;
-
-            RegisterBaseScale(manager, rb);
-
-            float factor = manager.currentButtonScale;
-
-            if (float.IsNaN(factor) ||
-                float.IsInfinity(factor) ||
-                Mathf.Abs(factor) <= 0.001f)
-                return;
-
-            Vector3 target = rb.BaseScale * factor;
-
-            if ((rb.Control.transform.localScale - target).sqrMagnitude >
-                0.000001f)
-                rb.Control.transform.localScale = target;
-        }
-
-        private void RegisterBaseScale(
-            TouchManager manager,
-            RuntimeButton rb)
-        {
-            if (manager?.baseScaleLookup == null ||
-                rb?.Control?.gameObject == null)
-                return;
-
-            string key = rb.Control.gameObject.name;
-
-            if (manager.baseScaleLookup.ContainsKey(key))
-                manager.baseScaleLookup[key] = rb.BaseScale;
-            else
-                manager.baseScaleLookup.Add(key, rb.BaseScale);
-        }
-
-        private Vector3 GetBaseScale(
-            TouchManager manager,
-            OnScreenButton button)
-        {
-            if (button?.transform == null)
-                return Vector3.one;
-
-            string key = button.gameObject.name;
-
-            if (manager?.baseScaleLookup != null &&
-                manager.baseScaleLookup.ContainsKey(key))
-            {
-                Vector3 known = manager.baseScaleLookup[key];
-
-                if (IsUsableScale(known))
-                    return known;
-            }
-
-            Vector3 scale = button.transform.localScale;
-
-            float factor =
-                manager != null ? manager.currentButtonScale : 1f;
-
-            if (!float.IsNaN(factor) &&
-                !float.IsInfinity(factor) &&
-                Mathf.Abs(factor) > 0.001f)
-                scale /= factor;
-
-            return TouchManager.SafeScale(scale);
-        }
-
         private bool IsUsableScale(Vector3 scale)
         {
             return !float.IsNaN(scale.x) &&
@@ -1014,19 +923,8 @@ namespace ULTRADROID.Core
             GameObject clone =
                 control != null ? control.gameObject : null;
 
-            if (manager?.buttons != null && control != null)
-            {
-                for (int i = manager.buttons.Count - 1; i >= 0; i--)
-                {
-                    if (manager.buttons[i] == control)
-                        manager.buttons.RemoveAt(i);
-                }
-            }
-
-            if (manager?.baseScaleLookup != null &&
-                clone != null &&
-                manager.baseScaleLookup.ContainsKey(clone.name))
-                manager.baseScaleLookup.Remove(clone.name);
+            if (manager?.inGameButtons != null && clone != null)
+                manager.inGameButtons.Remove(clone);
 
             if (clone != null)
                 UnityEngine.Object.Destroy(clone);
@@ -1036,22 +934,6 @@ namespace ULTRADROID.Core
                 rb.Registration.Handle.IsReady = false;
                 rb.Registration.Handle.GameObject = null;
             }
-        }
-
-        private bool ContainsButton(
-            TouchManager manager,
-            OnScreenButton target)
-        {
-            if (manager?.buttons == null || target == null)
-                return false;
-
-            for (int i = 0; i < manager.buttons.Count; i++)
-            {
-                if (manager.buttons[i] == target)
-                    return true;
-            }
-
-            return false;
         }
 
         private string MakeGameObjectName(string id)
@@ -1070,17 +952,14 @@ namespace ULTRADROID.Core
         {
             internal RuntimeButton(
                 ButtonRegistration registration,
-                OnScreenButton control,
-                Vector3 baseScale)
+                OnScreenButton control)
             {
                 Registration = registration;
                 Control = control;
-                BaseScale = baseScale;
             }
 
             internal ButtonRegistration Registration { get; }
             internal OnScreenButton Control { get; }
-            internal Vector3 BaseScale { get; }
         }
     }
 
