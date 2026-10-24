@@ -46,6 +46,9 @@ namespace ULTRADROID.Core
         private readonly Dictionary<string, RuntimeButton> activeButtons =
             new Dictionary<string, RuntimeButton>(StringComparer.Ordinal);
 
+        private readonly HashSet<string> templateFailureLogged =
+            new HashSet<string>(StringComparer.Ordinal);
+
         private string lastReportedError = string.Empty;
 
         private static Sprite fallbackDemoIcon;
@@ -167,9 +170,23 @@ namespace ULTRADROID.Core
             TouchManager manager,
             ButtonRegistration registration)
         {
-            if (manager?.inGameButtons == null ||
-                manager.inGameButtons.Count == 0)
+            string id = registration?.Config?.Id ?? "<unknown>";
+
+            if (manager == null)
             {
+                LogTemplateFailure(id, "TouchManager is null.");
+                return null;
+            }
+
+            if (manager.inGameButtons == null)
+            {
+                LogTemplateFailure(id, "TouchManager.inGameButtons is null.");
+                return null;
+            }
+
+            if (manager.inGameButtons.Count == 0)
+            {
+                LogTemplateFailure(id, "inGameButtons is empty.");
                 return null;
             }
 
@@ -181,7 +198,8 @@ namespace ULTRADROID.Core
                 if (candidate == null)
                     continue;
 
-                OnScreenButton found = candidate.GetComponent<OnScreenButton>();
+                OnScreenButton found =
+                    candidate.GetComponent<OnScreenButton>();
 
                 if (found != null)
                 {
@@ -192,7 +210,17 @@ namespace ULTRADROID.Core
             }
 
             if (sourceObject == null || source == null)
+            {
+                LogTemplateFailure(
+                    id,
+                    "No OnScreenButton template found. " +
+                    "inGameButtons count = " +
+                    manager.inGameButtons.Count);
+
                 return null;
+            }
+
+            templateFailureLogged.Remove(id);
 
             ButtonConfig config = registration.Config;
 
@@ -280,6 +308,16 @@ namespace ULTRADROID.Core
                 "[ULTRADROID] HUD button ready: " + config.Id);
 
             return runtimeButton;
+        }
+
+        private void LogTemplateFailure(string id, string reason)
+        {
+            if (templateFailureLogged.Add(id))
+            {
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] Cannot create button '" +
+                    id + "': " + reason);
+            }
         }
 
         private void LogVisibilityDiagnostics(GameObject clone)
@@ -389,7 +427,6 @@ namespace ULTRADROID.Core
             if (clone == null || config == null)
                 return;
 
-            // Preserve the existing visible button graphics.
             HideOriginalVisuals(clone);
 
             Sprite icon = null;
@@ -541,7 +578,6 @@ namespace ULTRADROID.Core
 
             try
             {
-                // IL2CPP-compatible: use the name-only constructor.
                 labelObject = new GameObject("ULTRADROID_Label");
 
                 labelObject.transform.SetParent(clone.transform, false);
@@ -623,7 +659,6 @@ namespace ULTRADROID.Core
             if (clone == null)
                 return;
 
-            // Keep the existing visuals enabled so the button remains visible.
             foreach (Image image in
                      clone.GetComponentsInChildren<Image>(true))
             {
@@ -772,11 +807,9 @@ namespace ULTRADROID.Core
                 {
                     try
                     {
-                        // Never run the custom action while editing controls.
                         if (IsLayoutEditorActive(manager))
                             return;
 
-                        // Also prevent clicks from being processed behind menus.
                         if (IsGameplayMenuOpen())
                             return;
 
@@ -802,7 +835,6 @@ namespace ULTRADROID.Core
             if (manager == null)
                 return false;
 
-            // The End Edit button is expected to be active while editing.
             try
             {
                 return manager.IsEditMode;
@@ -836,7 +868,6 @@ namespace ULTRADROID.Core
                 ControlsRuntimeLog.Error(
                     "[ULTRADROID] Could not read menu state: " + ex.Message);
 
-                // Fail open rather than permanently hiding the buttons.
                 return false;
             }
         }
@@ -853,7 +884,6 @@ namespace ULTRADROID.Core
             if (buttonObject == null)
                 return;
 
-            // Editing takes priority over pause/menu hiding and IsVisible.
             if (IsLayoutEditorActive(activeManager))
             {
                 if (!buttonObject.activeSelf)
@@ -862,7 +892,6 @@ namespace ULTRADROID.Core
                 return;
             }
 
-            // Hide custom buttons whenever a menu is open.
             if (IsGameplayMenuOpen())
             {
                 if (buttonObject.activeSelf)
@@ -888,7 +917,6 @@ namespace ULTRADROID.Core
                     runtimeButton.Registration.Config.Id +
                     "': " + ex);
 
-                // Preserve current visibility if the predicate fails.
                 return;
             }
 
