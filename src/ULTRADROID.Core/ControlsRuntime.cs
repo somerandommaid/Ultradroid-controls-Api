@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -42,6 +43,7 @@ namespace ULTRADROID.Core
     internal sealed class ControlsRuntimeLogic
     {
         private TouchManager activeManager;
+        private TouchManager inspectedManager;
 
         private readonly Dictionary<string, RuntimeButton> activeButtons =
             new Dictionary<string, RuntimeButton>(StringComparer.Ordinal);
@@ -68,7 +70,10 @@ namespace ULTRADROID.Core
                     if (activeButtons.Count > 0)
                         ResetForManager(null);
                     else
+                    {
                         activeManager = null;
+                        inspectedManager = null;
+                    }
 
                     return;
                 }
@@ -79,6 +84,7 @@ namespace ULTRADROID.Core
                 if (manager.inGameButtons == null)
                     return;
 
+                InspectInGameButtons(manager);
                 SynchronizeButtons(manager);
 
                 foreach (RuntimeButton runtimeButton in activeButtons.Values)
@@ -101,6 +107,113 @@ namespace ULTRADROID.Core
             }
         }
 
+        private void InspectInGameButtons(TouchManager manager)
+        {
+            if (manager == null || inspectedManager == manager)
+                return;
+
+            inspectedManager = manager;
+
+            ControlsRuntimeLog.Info(
+                "[ULTRADROID] Beginning one-time inGameButtons inspection. " +
+                "Count = " + manager.inGameButtons.Count);
+
+            foreach (GameObject item in manager.inGameButtons)
+            {
+                if (item == null)
+                {
+                    ControlsRuntimeLog.Info(
+                        "[ULTRADROID] inGameButtons contains a NULL entry.");
+                    continue;
+                }
+
+                ControlsRuntimeLog.Info(
+                    "[ULTRADROID] Template candidate: " + item.name);
+
+                try
+                {
+                    Component[] components =
+                        item.GetComponents<Component>();
+
+                    foreach (Component component in components)
+                    {
+                        ControlsRuntimeLog.Info(
+                            "[ULTRADROID] Component on " + item.name + ": " +
+                            (component != null
+                                ? component.GetType().FullName
+                                : "<null>"));
+                    }
+
+                    ControlsRuntimeLog.Info(
+                        "[ULTRADROID] Candidate hierarchy: " +
+                        GetHierarchyPath(item.transform));
+
+                    OnScreenButton onScreenButton =
+                        item.GetComponent<OnScreenButton>();
+
+                    ControlsRuntimeLog.Info(
+                        "[ULTRADROID] Direct OnScreenButton on " +
+                        item.name + ": " +
+                        (onScreenButton != null ? "YES" : "NO"));
+
+                    OnScreenButton childButton =
+                        item.GetComponentInChildren<OnScreenButton>(true);
+
+                    ControlsRuntimeLog.Info(
+                        "[ULTRADROID] Child OnScreenButton on " +
+                        item.name + ": " +
+                        (childButton != null ? "YES" : "NO"));
+
+                    Button uiButton =
+                        item.GetComponent<Button>();
+
+                    ControlsRuntimeLog.Info(
+                        "[ULTRADROID] Direct Unity UI Button on " +
+                        item.name + ": " +
+                        (uiButton != null ? "YES" : "NO"));
+
+                    foreach (Graphic graphic in
+                             item.GetComponentsInChildren<Graphic>(true))
+                    {
+                        if (graphic == null)
+                            continue;
+
+                        ControlsRuntimeLog.Info(
+                            "[ULTRADROID] Candidate graphic: " +
+                            graphic.GetType().FullName +
+                            " | object=" + graphic.gameObject.name +
+                            " | enabled=" + graphic.enabled);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ControlsRuntimeLog.Error(
+                        "[ULTRADROID] Inspection failed for " +
+                        item.name + ": " + ex);
+                }
+            }
+
+            ControlsRuntimeLog.Info(
+                "[ULTRADROID] Finished inGameButtons inspection.");
+        }
+
+        private string GetHierarchyPath(Transform transform)
+        {
+            if (transform == null)
+                return "<null>";
+
+            string path = transform.name;
+            Transform parent = transform.parent;
+
+            while (parent != null)
+            {
+                path = parent.name + "/" + path;
+                parent = parent.parent;
+            }
+
+            return path;
+        }
+
         private void ResetForManager(TouchManager manager)
         {
             TouchManager previousManager = activeManager;
@@ -115,6 +228,9 @@ namespace ULTRADROID.Core
             }
 
             activeManager = manager;
+
+            if (manager == null || inspectedManager != manager)
+                inspectedManager = null;
         }
 
         private void SynchronizeButtons(TouchManager manager)
@@ -155,7 +271,6 @@ namespace ULTRADROID.Core
                 if (created != null)
                 {
                     activeButtons[id] = created;
-
                     ApplyVisibility(created);
 
                     ControlsRuntimeLog.Info(
@@ -163,7 +278,8 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // Layout restoration is not implemented for the current TouchManager API.
+            // Layout restoration is not implemented for the current
+            // TouchManager API.
         }
 
         private RuntimeButton CreateButton(
@@ -279,9 +395,7 @@ namespace ULTRADROID.Core
                 rect.anchoredPosition += config.PositionOffset;
 
             ApplyVisuals(clone, config);
-
             LogVisibilityDiagnostics(clone);
-
             BindClick(clone, registration, manager);
 
             if (!manager.inGameButtons.Contains(clone))
@@ -579,7 +693,6 @@ namespace ULTRADROID.Core
             try
             {
                 labelObject = new GameObject("ULTRADROID_Label");
-
                 labelObject.transform.SetParent(clone.transform, false);
 
                 RectTransform rect =
