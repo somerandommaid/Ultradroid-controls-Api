@@ -826,7 +826,7 @@ namespace ULTRADROID.Core
                     return true;
 
                 if (options.optionsMenu != null &&
-                    options.optionsMenu.activeInHierarchy)
+                    options.optionsMenu.gameObject.activeInHierarchy)
                     return true;
 
                 return false;
