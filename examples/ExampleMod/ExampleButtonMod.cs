@@ -50,15 +50,15 @@ namespace ULTRADROID.ExampleMod
                 Label = "",
                 Width = 100f,
                 Height = 40f,
-                IconWidth = 250f,
-                IconHeight = 100f,
+                IconWidth = 100f,
+                IconHeight = 40f,
                 IconPosition = Vector2.zero,
                 IconPreserveAspect = true,
                 IconPath = "ultradroid-demo-icon.png",   // Core will load this
                 PositionOffset = new Vector2(120f, 90f),
                 HideBackground = true,
                 BackgroundPath = null,
-                ApplyTint = true,
+                ApplyTint = false,
                 ScaleMultiplier = 1f,
                 OnClick = () =>
                 {
