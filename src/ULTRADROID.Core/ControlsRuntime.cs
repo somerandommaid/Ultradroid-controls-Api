@@ -805,18 +805,14 @@ namespace ULTRADROID.Core
 
             if (config.HideBackground)
             {
-                foreach (Image image in
-                         clone.GetComponentsInChildren<Image>(true))
+                // Hide only the original root Image on the cloned button.
+                Image originalBackground = clone.GetComponent<Image>();
+
+                if (originalBackground != null &&
+                    originalBackground.gameObject.name != "ULTRADROID_Background" &&
+                    originalBackground.gameObject.name != "ULTRADROID_Icon")
                 {
-                    if (image == null ||
-                        image.gameObject.name == "ULTRADROID_Background")
-                        continue;
-
-                    // Keep the custom icon visible.
-                    if (image.sprite == config.Icon)
-                        continue;
-
-                    image.enabled = false;
+                    originalBackground.enabled = false;
                 }
             }
 
