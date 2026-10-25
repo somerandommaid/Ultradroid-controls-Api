@@ -50,8 +50,8 @@ namespace ULTRADROID.ExampleMod
                 Label = "",
                 Width = 100f,
                 Height = 40f,
-                IconWidth = 100f,
-                IconHeight = 40f,
+                IconWidth = 300f,
+                IconHeight = 120f,
                 IconPosition = Vector2.zero,
                 IconPreserveAspect = true,
                 IconPath = "ultradroid-demo-icon.png",   // Core will load this
