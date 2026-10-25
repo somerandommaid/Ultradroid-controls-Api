@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -901,16 +900,24 @@ namespace ULTRADROID.Core
                 }
             }
 
-            if (config.HideBackground)
-            {
-                Graphic rootGraphic = clone.GetComponent<Graphic>();
+            Graphic rootGraphic = clone.GetComponent<Graphic>();
 
-                if (rootGraphic != null)
+            if (rootGraphic != null)
+            {
+                Color color = rootGraphic.color;
+
+                if (config.HideBackground)
                 {
-                    Color color = rootGraphic.color;
                     color.a = 0f;
-                    rootGraphic.color = color;
                 }
+                else
+                {
+                    // Preserve any alpha contributed by config.Tint when tint
+                    // is applied, then scale by the configured opacity.
+                    color.a *= ClampOpacity(config.BackgroundOpacity);
+                }
+
+                rootGraphic.color = color;
             }
 
             if (icon != null)
@@ -982,8 +989,12 @@ namespace ULTRADROID.Core
 
                     iconImage.sprite = icon;
                     iconImage.preserveAspect = config.IconPreserveAspect;
-                    iconImage.color =
+
+                    Color iconColor =
                         config.ApplyTint ? config.Tint : Color.white;
+
+                    iconColor.a *= ClampOpacity(config.IconOpacity);
+                    iconImage.color = iconColor;
                     iconImage.raycastTarget = false;
                     iconImage.enabled = true;
 
@@ -1004,9 +1015,12 @@ namespace ULTRADROID.Core
                     label.text = config.Label;
                     label.enabled = true;
                     label.gameObject.SetActive(true);
-                    label.color = config.ApplyTint
-                        ? config.Tint
-                        : Color.white;
+
+                    Color labelColor =
+                        config.ApplyTint ? config.Tint : Color.white;
+
+                    labelColor.a *= ClampOpacity(config.LabelOpacity);
+                    label.color = labelColor;
                     label.raycastTarget = false;
 
                     foundLabel = true;
@@ -1021,9 +1035,12 @@ namespace ULTRADROID.Core
                     label.text = config.Label;
                     label.enabled = true;
                     label.gameObject.SetActive(true);
-                    label.color = config.ApplyTint
-                        ? config.Tint
-                        : Color.white;
+
+                    Color labelColor =
+                        config.ApplyTint ? config.Tint : Color.white;
+
+                    labelColor.a *= ClampOpacity(config.LabelOpacity);
+                    label.color = labelColor;
                     label.raycastTarget = false;
 
                     foundLabel = true;
@@ -1099,9 +1116,13 @@ namespace ULTRADROID.Core
                 label.resizeTextForBestFit = true;
                 label.resizeTextMinSize = 12;
                 label.resizeTextMaxSize = 24;
-                label.color = config.ApplyTint
-                    ? config.Tint
-                    : Color.white;
+
+                Color labelColor =
+                    config.ApplyTint ? config.Tint : Color.white;
+
+                labelColor.a *= ClampOpacity(config.LabelOpacity);
+                label.color = labelColor;
+
                 label.raycastTarget = false;
                 label.supportRichText = false;
                 label.enabled = true;
