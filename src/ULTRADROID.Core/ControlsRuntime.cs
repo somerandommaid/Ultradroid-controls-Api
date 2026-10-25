@@ -804,7 +804,11 @@ namespace ULTRADROID.Core
 
             image.sprite = background;
             image.preserveAspect = config.BackgroundPreserveAspect;
-            image.color = Color.white;
+            image.color = new Color(
+                1f,
+                1f,
+                1f,
+                ClampOpacity(config.BackgroundOpacity));
             image.raycastTarget = false;
             image.enabled = true;
 
