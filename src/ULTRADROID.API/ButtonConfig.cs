@@ -91,6 +91,9 @@ namespace ULTRADROID.API
         /// </summary>
         public bool HideBackground { get; set; } = false;
 
+        // Opacity values range from 0.0 (transparent) to 1.0 (opaque).
+        public float BackgroundOpacity { get; set; } = 1f;
+        public float IconOpacity { get; set; } = 1f;
 
     }
 }
