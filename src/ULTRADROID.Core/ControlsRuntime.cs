@@ -725,6 +725,75 @@ namespace ULTRADROID.Core
             }
         }
 
+        private void ApplyBackground(
+            GameObject clone,
+            ButtonConfig config)
+        {
+            if (clone == null || config == null)
+                return;
+
+            Sprite background = config.Background;
+
+            if (background == null &&
+                !string.IsNullOrEmpty(config.BackgroundPath))
+            {
+                background = LoadIconFromPath(config.BackgroundPath);
+            }
+
+            // No custom sprite: leave the existing background unchanged.
+            if (background == null)
+                return;
+
+            Transform existing =
+                clone.transform.Find("ULTRADROID_Background");
+
+            GameObject backgroundObject;
+
+            if (existing != null)
+            {
+                backgroundObject = existing.gameObject;
+            }
+            else
+            {
+                backgroundObject =
+                    new GameObject("ULTRADROID_Background");
+
+                backgroundObject.transform.SetParent(
+                    clone.transform, false);
+            }
+
+            RectTransform rect =
+                backgroundObject.GetComponent<RectTransform>();
+
+            if (rect == null)
+                rect = backgroundObject.AddComponent<RectTransform>();
+
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.localScale = Vector3.one;
+            rect.localRotation = Quaternion.identity;
+            rect.anchoredPosition = Vector2.zero;
+
+            Image image = backgroundObject.GetComponent<Image>();
+
+            if (image == null)
+                image = backgroundObject.AddComponent<Image>();
+
+            image.sprite = background;
+            image.preserveAspect = config.BackgroundPreserveAspect;
+            image.color = Color.white;
+            image.raycastTarget = false;
+            image.enabled = true;
+
+            backgroundObject.SetActive(true);
+
+            // Draw the custom background behind the other button contents.
+            backgroundObject.transform.SetAsFirstSibling();
+        }
+
         private void ApplyVisuals(
             GameObject clone,
             ButtonConfig config)
@@ -733,6 +802,25 @@ namespace ULTRADROID.Core
                 return;
 
             HideOriginalVisuals(clone);
+
+            if (config.HideBackground)
+            {
+                foreach (Image image in
+                         clone.GetComponentsInChildren<Image>(true))
+                {
+                    if (image == null ||
+                        image.gameObject.name == "ULTRADROID_Background")
+                        continue;
+
+                    // Keep the custom icon visible.
+                    if (image.sprite == config.Icon)
+                        continue;
+
+                    image.enabled = false;
+                }
+            }
+
+            ApplyBackground(clone, config);
 
             Sprite icon = null;
 
@@ -750,15 +838,21 @@ namespace ULTRADROID.Core
                 foreach (Graphic graphic in
                          clone.GetComponentsInChildren<Graphic>(true))
                 {
-                    if (graphic != null)
+                    if (graphic != null &&
+                        graphic.gameObject.name != "ULTRADROID_Background")
+                    {
                         graphic.color = config.Tint;
+                    }
                 }
             }
 
             if (icon != null)
             {
                 Image[] images =
-                    clone.GetComponentsInChildren<Image>(true);
+                    Array.FindAll(
+                        clone.GetComponentsInChildren<Image>(true),
+                        image => image != null &&
+                                 image.gameObject.name != "ULTRADROID_Background");
 
                 bool addedRootImage = false;
 
