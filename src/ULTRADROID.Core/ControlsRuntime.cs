@@ -490,6 +490,24 @@ namespace ULTRADROID.Core
                     sourceRect.anchoredPosition + config.PositionOffset;
                 cloneRect.localRotation = sourceRect.localRotation;
             }
+            
+            if (sourceRect != null && cloneRect != null)
+            {
+                float width = config.Width > 0f &&
+                !float.IsNaN(config.Width) &&
+                !float.IsInfinity(config.Width)
+                ? config.Width
+                : sourceRect.sizeDelta.x;
+
+                float height = config.Height > 0f &&
+                !float.IsNaN(config.Height) &&
+                !float.IsInfinity(config.Height)
+                ? config.Height
+                : sourceRect.sizeDelta.y;
+
+                cloneRect.sizeDelta = new Vector2(width, height);
+            }
+
 
             ApplyVisuals(clone, config);
             LogVisibilityDiagnostics(clone);
