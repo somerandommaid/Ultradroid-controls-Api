@@ -85,7 +85,11 @@ namespace ULTRADROID.API
         /// False stretches it to fill the button.
         /// </summary>
         public bool BackgroundPreserveAspect { get; set; } = false;
-
+        
+        /// <summary>
+        /// Hides the original button background.
+        /// </summary>
+        public bool HideBackground { get; set; } = false;
 
 
     }
