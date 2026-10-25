@@ -524,7 +524,34 @@ namespace ULTRADROID.Core
                     editableComponent.Init(manager, editableRect);
 
                     if (!manager.editableControls.Contains(editableRect))
+                    {
                         manager.editableControls.Add(editableRect);
+
+                        // Keep custom controls in a deterministic order.
+                        var customControls = new List<RectTransform>();
+
+                        foreach (RectTransform item in manager.editableControls)
+                        {
+                            if (item != null &&
+                                item.name.StartsWith(
+                                    "ULTRADROID_BUTTON_",
+                                    StringComparison.Ordinal))
+                            {
+                                customControls.Add(item);
+                            }
+                        }
+
+                        customControls.Sort((a, b) =>
+                            string.Compare(a.name, b.name, StringComparison.Ordinal));
+
+                        int insertIndex = manager.editableControls.Count - customControls.Count;
+
+                        foreach (RectTransform item in customControls)
+                        {
+                            manager.editableControls.Remove(item);
+                            manager.editableControls.Insert(insertIndex++, item);
+                        }
+                    }
 
                     editableControlsRebuildPending = true;
 
