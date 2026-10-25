@@ -46,5 +46,28 @@ namespace ULTRADROID.API
         /// </summary>
         public float Height { get; set; } = 0f;
 
+        /// <summary>
+        /// Optional icon width in UI layout units.
+        /// Zero uses the button's width.
+        /// </summary>
+        public float IconWidth { get; set; } = 0f;
+        
+        /// <summary>
+        /// Optional icon height in UI layout units.
+        /// Zero uses the button's height.
+        /// </summary>
+        public float IconHeight { get; set; } = 0f;
+        
+        /// <summary>
+        /// Icon position relative to the center of the button.
+        /// </summary>
+        public Vector2 IconPosition { get; set; } = Vector2.zero;
+        
+        /// <summary>
+        /// Preserve the image's aspect ratio when displaying it.
+        /// </summary>
+        public bool IconPreserveAspect { get; set; } = true;
+
+
     }
 }
