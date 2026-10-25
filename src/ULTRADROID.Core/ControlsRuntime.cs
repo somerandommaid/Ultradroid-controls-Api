@@ -832,15 +832,18 @@ namespace ULTRADROID.Core
                     if (graphic == null)
                         continue;
 
-                    // Keep the custom icon visible.
-                    if (graphic.gameObject.name == "ULTRADROID_Icon")
+                    string objectName = graphic.gameObject.name;
+
+                    // Preserve the root Graphic so the game's editor
+                    // can still identify and select the button.
+                    if (graphic.gameObject == clone)
                         continue;
 
-                    // Keep any custom background object untouched.
-                    if (graphic.gameObject.name == "ULTRADROID_Background")
+                    // Preserve the custom icon and background.
+                    if (objectName == "ULTRADROID_Icon" ||
+                        objectName == "ULTRADROID_Background")
                         continue;
 
-                    // Hide the original button background/visual.
                     graphic.enabled = false;
                 }
             }
