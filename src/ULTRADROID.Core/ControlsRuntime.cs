@@ -52,7 +52,10 @@ namespace ULTRADROID.Core
         private static readonly MethodInfo InitEditableControlsMethod =
             typeof(TouchManager).GetMethod(
                 "InitEditableControls",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+                BindingFlags.Instance |
+                BindingFlags.Public |
+                BindingFlags.NonPublic |
+                BindingFlags.DeclaredOnly);
 
         private readonly Dictionary<string, RuntimeButton> activeButtons =
             new Dictionary<string, RuntimeButton>(StringComparer.Ordinal);
