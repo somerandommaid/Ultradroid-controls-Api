@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using BepInEx;
 using BepInEx.Logging;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
@@ -45,6 +46,14 @@ namespace ULTRADROID.Core
         private TouchManager activeManager;
         private TouchManager inspectedManager;
 
+        private bool editableControlsRebuildPending;
+        private bool rebuildMethodErrorLogged;
+
+        private static readonly MethodInfo InitEditableControlsMethod =
+            typeof(TouchManager).GetMethod(
+                "InitEditableControls",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+
         private readonly Dictionary<string, RuntimeButton> activeButtons =
             new Dictionary<string, RuntimeButton>(StringComparer.Ordinal);
 
@@ -86,6 +95,7 @@ namespace ULTRADROID.Core
 
                 InspectInGameButtons(manager);
                 SynchronizeButtons(manager);
+                RebuildEditableControlsIfNeeded(manager);
 
                 foreach (RuntimeButton runtimeButton in activeButtons.Values)
                     ApplyVisibility(runtimeButton);
@@ -227,10 +237,57 @@ namespace ULTRADROID.Core
                     RemoveRuntimeButton(previousManager, id);
             }
 
-            activeManager = manager;
+            // Never carry pending editor rebuilds across managers.
+            editableControlsRebuildPending = false;
+            rebuildMethodErrorLogged = false;
 
-            if (manager == null || inspectedManager != manager)
-                inspectedManager = null;
+            activeManager = manager;
+            inspectedManager = null;
+        }
+
+        private void RebuildEditableControlsIfNeeded(TouchManager manager)
+        {
+            if (!editableControlsRebuildPending ||
+                manager == null ||
+                manager.IsEditMode)
+                return;
+
+            if (manager.editableControls == null)
+            {
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] Cannot rebuild editor: editableControls is null.");
+                return;
+            }
+
+            if (InitEditableControlsMethod == null)
+            {
+                if (!rebuildMethodErrorLogged)
+                {
+                    ControlsRuntimeLog.Error(
+                        "[ULTRADROID] TouchManager.InitEditableControls was not found.");
+
+                    rebuildMethodErrorLogged = true;
+                }
+
+                return;
+            }
+
+            try
+            {
+                InitEditableControlsMethod.Invoke(manager, null);
+
+                editableControlsRebuildPending = false;
+                rebuildMethodErrorLogged = false;
+
+                ControlsRuntimeLog.Info(
+                    "[ULTRADROID] Touch editor state rebuilt successfully.");
+            }
+            catch (Exception ex)
+            {
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] Editor rebuild failed: " +
+                    (ex.InnerException ?? ex));
+            }
         }
 
         private void SynchronizeButtons(TouchManager manager)
@@ -278,8 +335,7 @@ namespace ULTRADROID.Core
                 }
             }
 
-            // Layout restoration is not implemented for the current
-            // TouchManager API.
+            // Runtime button additions/removals request a native editor-state rebuild.
         }
 
         private RuntimeButton CreateButton(
@@ -432,6 +488,50 @@ namespace ULTRADROID.Core
             // Register only the cloned button, never the whole InGame root.
             if (!manager.inGameButtons.Contains(clone))
                 manager.inGameButtons.Add(clone);
+
+            RectTransform editableRect =
+                clone.GetComponent<RectTransform>();
+
+            if (editableRect == null)
+            {
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] Custom button has no RectTransform: " +
+                    config.Id);
+            }
+            else if (manager.editableControls == null)
+            {
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] TouchManager.editableControls is null.");
+            }
+            else
+            {
+                EditableTouchControl editableComponent =
+                    clone.GetComponent<EditableTouchControl>();
+
+                if (editableComponent == null)
+                    editableComponent =
+                        clone.AddComponent<EditableTouchControl>();
+
+                if (editableComponent != null)
+                {
+                    editableComponent.Init(manager, editableRect);
+
+                    if (!manager.editableControls.Contains(editableRect))
+                        manager.editableControls.Add(editableRect);
+
+                    editableControlsRebuildPending = true;
+
+                    ControlsRuntimeLog.Info(
+                        "[ULTRADROID] Registered editable control: " +
+                        config.Id);
+                }
+                else
+                {
+                    ControlsRuntimeLog.Error(
+                        "[ULTRADROID] Could not attach EditableTouchControl: " +
+                        config.Id);
+                }
+            }
 
             Vector3 baseline = sourceObject.transform.localScale;
 
@@ -1095,22 +1195,39 @@ namespace ULTRADROID.Core
 
             activeButtons.Remove(id);
 
-            OnScreenButton control = rb.Control;
+            GameObject clone = rb.Control != null
+                ? rb.Control.gameObject
+                : null;
 
-            GameObject clone =
-                control != null ? control.gameObject : null;
+            if (manager != null)
+            {
+                if (clone != null)
+                {
+                    if (manager.inGameButtons != null)
+                        manager.inGameButtons.Remove(clone);
 
-            if (manager?.inGameButtons != null && clone != null)
-                manager.inGameButtons.Remove(clone);
+                    RectTransform rect =
+                        clone.GetComponent<RectTransform>();
 
-            if (clone != null)
-                UnityEngine.Object.Destroy(clone);
+                    if (manager.editableControls != null && rect != null)
+                        manager.editableControls.Remove(rect);
+                }
+
+                // Rebuild even if the clone has already disappeared.
+                editableControlsRebuildPending = true;
+            }
 
             if (rb.Registration?.Handle != null)
             {
                 rb.Registration.Handle.IsReady = false;
                 rb.Registration.Handle.GameObject = null;
             }
+
+            if (clone != null)
+                UnityEngine.Object.Destroy(clone);
+
+            ControlsRuntimeLog.Info(
+                "[ULTRADROID] Removed runtime button: " + id);
         }
 
         private string MakeGameObjectName(string id)
