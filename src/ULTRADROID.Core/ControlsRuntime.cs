@@ -295,6 +295,13 @@ namespace ULTRADROID.Core
             ButtonRegistration[] registrations =
                 ULTRADROIDControls.GetRegistrations();
 
+            Array.Sort(
+                registrations,
+                (a, b) => string.Compare(
+                    a?.Config?.Id ?? string.Empty,
+                    b?.Config?.Id ?? string.Empty,
+                    StringComparison.Ordinal));
+
             foreach (ButtonRegistration registration in registrations)
             {
                 if (registration?.Config == null)
