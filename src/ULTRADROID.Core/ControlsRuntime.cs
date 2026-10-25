@@ -848,13 +848,17 @@ namespace ULTRADROID.Core
 
             if (icon != null)
             {
-                Image[] images =
-                    Array.FindAll(
-                        clone.GetComponentsInChildren<Image>(true),
-                        image => image != null &&
-                                 image.gameObject.name != "ULTRADROID_Background");
-
-                bool addedRootImage = false;
+                List<Image> imageList = new List<Image>();
+                foreach (Image candidate in clone.GetComponentsInChildren<Image>(true))
+                {
+                    if (candidate != null &&
+                        candidate.gameObject.name != "ULTRADROID_Background")
+                    {
+                        imageList.Add(candidate);
+                    }
+                }
+            }
+            Image[] images = imageList.ToArray();
 
                 if (images.Length == 0)
                 {
