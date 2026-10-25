@@ -47,11 +47,11 @@ namespace ULTRADROID.ExampleMod
             buttonHandle = ULTRADROIDControls.AddButton(new ButtonConfig
             {
                 Id = "ULTRADROID.Example.Demo",
-                Label = "DEMO",
+                Label = "",
                 Width = 100f,
                 Height = 40f,
-                IconWidth = 100f,
-                IconHeight = 40f,
+                IconWidth = 500f,
+                IconHeight = 200f,
                 IconPosition = Vector2.zero,
                 IconPreserveAspect = true,
                 IconPath = "ultradroid-demo-icon.png",   // Core will load this
