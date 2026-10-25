@@ -834,16 +834,19 @@ namespace ULTRADROID.Core
 
                     string objectName = graphic.gameObject.name;
 
-                    // Preserve the root Graphic so the game's editor
-                    // can still identify and select the button.
-                    if (graphic.gameObject == clone)
-                        continue;
-
-                    // Preserve the custom icon and background.
+                    // Keep the custom icon and optional custom background.
                     if (objectName == "ULTRADROID_Icon" ||
                         objectName == "ULTRADROID_Background")
                         continue;
 
+                    if (graphic.gameObject == clone)
+                    {
+                        // Keep the root Graphic for touch/editor behavior.
+                        // Its alpha is reset after tinting below.
+                        continue;
+                    }
+
+                    // Hide original template graphics.
                     graphic.enabled = false;
                 }
             }
@@ -874,68 +877,94 @@ namespace ULTRADROID.Core
                 }
             }
 
+            if (config.HideBackground)
+            {
+                Graphic rootGraphic = clone.GetComponent<Graphic>();
+
+                if (rootGraphic != null)
+                {
+                    Color color = rootGraphic.color;
+                    color.a = 0f;
+                    rootGraphic.color = color;
+                }
+            }
+
             if (icon != null)
             {
-                Transform iconTransform =
-                    clone.transform.Find("ULTRADROID_Icon");
+                RectTransform buttonRect =
+                    clone.GetComponent<RectTransform>();
 
-                GameObject iconObject;
-
-                if (iconTransform != null)
+                if (buttonRect == null)
                 {
-                    iconObject = iconTransform.gameObject;
+                    ControlsRuntimeLog.Error(
+                        "[ULTRADROID] Cannot position icon: button has no RectTransform.");
                 }
                 else
                 {
-                    iconObject = new GameObject("ULTRADROID_Icon");
-                    iconObject.transform.SetParent(clone.transform, false);
+                    Transform existingIcon =
+                        clone.transform.Find("ULTRADROID_Icon");
+
+                    GameObject iconObject;
+
+                    if (existingIcon != null)
+                    {
+                        iconObject = existingIcon.gameObject;
+                    }
+                    else
+                    {
+                        iconObject = new GameObject("ULTRADROID_Icon");
+                        iconObject.transform.SetParent(clone.transform, false);
+                    }
+
+                    RectTransform iconRect =
+                        iconObject.GetComponent<RectTransform>();
+
+                    if (iconRect == null)
+                        iconRect = iconObject.AddComponent<RectTransform>();
+
+                    Image iconImage = iconObject.GetComponent<Image>();
+
+                    if (iconImage == null)
+                        iconImage = iconObject.AddComponent<Image>();
+
+                    float buttonWidth = buttonRect.rect.width;
+                    float buttonHeight = buttonRect.rect.height;
+
+                    float iconWidth =
+                        config.IconWidth > 0f &&
+                        !float.IsNaN(config.IconWidth) &&
+                        !float.IsInfinity(config.IconWidth)
+                            ? config.IconWidth
+                            : buttonWidth;
+
+                    float iconHeight =
+                        config.IconHeight > 0f &&
+                        !float.IsNaN(config.IconHeight) &&
+                        !float.IsInfinity(config.IconHeight)
+                            ? config.IconHeight
+                            : buttonHeight;
+
+                    // Center the icon relative to the button.
+                    iconRect.anchorMin = new Vector2(0.5f, 0.5f);
+                    iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+                    iconRect.pivot = new Vector2(0.5f, 0.5f);
+                    iconRect.sizeDelta =
+                        new Vector2(iconWidth, iconHeight);
+
+                    // Zero means exactly centered.
+                    iconRect.anchoredPosition = config.IconPosition;
+                    iconRect.localScale = Vector3.one;
+                    iconRect.localRotation = Quaternion.identity;
+
+                    iconImage.sprite = icon;
+                    iconImage.preserveAspect = config.IconPreserveAspect;
+                    iconImage.color =
+                        config.ApplyTint ? config.Tint : Color.white;
+                    iconImage.raycastTarget = false;
+                    iconImage.enabled = true;
+
+                    iconObject.SetActive(true);
                 }
-
-                RectTransform iconRect =
-                    iconObject.GetComponent<RectTransform>();
-
-                if (iconRect == null)
-                    iconRect = iconObject.AddComponent<RectTransform>();
-
-                Image iconImage = iconObject.GetComponent<Image>();
-
-                if (iconImage == null)
-                    iconImage = iconObject.AddComponent<Image>();
-
-                // Always size and center the icon relative to the button.
-                iconRect.anchorMin = new Vector2(0.5f, 0.5f);
-                iconRect.anchorMax = new Vector2(0.5f, 0.5f);
-                iconRect.pivot = new Vector2(0.5f, 0.5f);
-
-                float buttonWidth = clone.GetComponent<RectTransform>().rect.width;
-                float buttonHeight = clone.GetComponent<RectTransform>().rect.height;
-
-                float iconWidth =
-                    config.IconWidth > 0f &&
-                    !float.IsNaN(config.IconWidth) &&
-                    !float.IsInfinity(config.IconWidth)
-                        ? config.IconWidth
-                        : buttonWidth;
-
-                float iconHeight =
-                    config.IconHeight > 0f &&
-                    !float.IsNaN(config.IconHeight) &&
-                    !float.IsInfinity(config.IconHeight)
-                        ? config.IconHeight
-                        : buttonHeight;
-
-                iconRect.sizeDelta = new Vector2(iconWidth, iconHeight);
-                iconRect.anchoredPosition = config.IconPosition;
-                iconRect.localScale = Vector3.one;
-                iconRect.localRotation = Quaternion.identity;
-
-                iconImage.sprite = icon;
-                iconImage.preserveAspect = config.IconPreserveAspect;
-                iconImage.color = config.ApplyTint ? config.Tint : Color.white;
-                iconImage.raycastTarget = false;
-                iconImage.enabled = true;
-
-                iconObject.SetActive(true);
             }
 
             if (!string.IsNullOrEmpty(config.Label))
