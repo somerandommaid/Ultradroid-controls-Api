@@ -58,7 +58,7 @@ namespace ULTRADROID.ExampleMod
                 PositionOffset = new Vector2(120f, 90f),
                 HideBackground = true,
                 BackgroundPath = null,
-                ApplyTint = false,
+                ApplyTint = true,
                 ScaleMultiplier = 1f,
                 OnClick = () =>
                 {
