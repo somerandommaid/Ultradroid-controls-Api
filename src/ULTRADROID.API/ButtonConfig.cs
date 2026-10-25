@@ -94,6 +94,6 @@ namespace ULTRADROID.API
         // Opacity values range from 0.0 (transparent) to 1.0 (opaque).
         public float BackgroundOpacity { get; set; } = 1f;
         public float IconOpacity { get; set; } = 1f;
-
+        public float LabelOpacity { get; set; } = 1f;
     }
 }
