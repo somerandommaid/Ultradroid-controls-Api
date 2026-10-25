@@ -1325,11 +1325,19 @@ namespace ULTRADROID.Core
             GameObject buttonObject = runtimeButton.Control != null
                 ? runtimeButton.Control.gameObject
                 : null;
+                
+           EditableTouchControl editable =
+           buttonObject.GetComponent<EditableTouchControl>();
+           
+           bool editing = IsLayoutEditorActive(activeManager);
+           if (editable != null && editable.enabled != editing)
+               editable.enabled = editing;
+
 
             if (buttonObject == null)
                 return;
 
-            if (IsLayoutEditorActive(activeManager))
+            if (editing)
             {
                 if (!buttonObject.activeSelf)
                     buttonObject.SetActive(true);
