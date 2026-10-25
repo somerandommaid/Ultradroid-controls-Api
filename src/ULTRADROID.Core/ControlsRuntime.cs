@@ -69,6 +69,26 @@ namespace ULTRADROID.Core
 
         private static readonly List<UnityEngine.Object> keepAlive =
             new List<UnityEngine.Object>();
+        
+        private float ClampOpacity(float opacity)
+        {
+            if (float.IsNaN(opacity))
+                return 1f;
+            if (float.IsInfinity(opacity))
+                return 1f;
+            
+            return Mathf.Clamp01(opacity);
+        }
+        
+        private void SetGraphicOpacity(Graphic graphic, float opacity)
+        {
+            if (graphic == null)
+                return;
+            
+            Color color = graphic.color;
+            color.a *= ClampOpacity(opacity);
+            graphic.color = color;
+        }
 
         internal void Tick()
         {
