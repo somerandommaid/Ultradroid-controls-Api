@@ -849,7 +849,9 @@ namespace ULTRADROID.Core
             if (icon != null)
             {
                 List<Image> imageList = new List<Image>();
-                foreach (Image candidate in clone.GetComponentsInChildren<Image>(true))
+
+                foreach (Image candidate in
+                         clone.GetComponentsInChildren<Image>(true))
                 {
                     if (candidate != null &&
                         candidate.gameObject.name != "ULTRADROID_Background")
@@ -857,30 +859,23 @@ namespace ULTRADROID.Core
                         imageList.Add(candidate);
                     }
                 }
-            }
-            Image[] images = imageList.ToArray();
+
+                Image[] images = imageList.ToArray();
 
                 if (images.Length == 0)
                 {
                     try
                     {
-                        GameObject iconGo =
-                            new GameObject("ULTRADROID_Icon");
-
+                        GameObject iconGo = new GameObject("ULTRADROID_Icon");
                         iconGo.transform.SetParent(clone.transform, false);
 
-                        RectTransform rt =
-                            iconGo.AddComponent<RectTransform>();
-
-                        if (rt != null)
-                        {
-                            rt.anchorMin = Vector2.zero;
-                            rt.anchorMax = Vector2.one;
-                            rt.offsetMin = Vector2.zero;
-                            rt.offsetMax = Vector2.zero;
-                            rt.localScale = Vector3.one;
-                            rt.localPosition = Vector3.zero;
-                        }
+                        RectTransform rt = iconGo.AddComponent<RectTransform>();
+                        rt.anchorMin = Vector2.zero;
+                        rt.anchorMax = Vector2.one;
+                        rt.offsetMin = Vector2.zero;
+                        rt.offsetMax = Vector2.zero;
+                        rt.localScale = Vector3.one;
+                        rt.localPosition = Vector3.zero;
 
                         Image rootImage = iconGo.AddComponent<Image>();
 
@@ -890,8 +885,7 @@ namespace ULTRADROID.Core
                             rootImage.raycastTarget = false;
                             rootImage.enabled = true;
 
-                            images = new[] { rootImage };
-                            addedRootImage = true;
+                            images = new Image[] { rootImage };
                         }
                         else
                         {
@@ -948,8 +942,7 @@ namespace ULTRADROID.Core
                         iconRect.anchorMin = new Vector2(0.5f, 0.5f);
                         iconRect.anchorMax = new Vector2(0.5f, 0.5f);
                         iconRect.pivot = new Vector2(0.5f, 0.5f);
-                        iconRect.sizeDelta =
-                            new Vector2(iconWidth, iconHeight);
+                        iconRect.sizeDelta = new Vector2(iconWidth, iconHeight);
                         iconRect.anchoredPosition = config.IconPosition;
                         iconRect.localScale = Vector3.one;
                     }
