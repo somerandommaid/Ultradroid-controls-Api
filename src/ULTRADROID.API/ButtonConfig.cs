@@ -36,5 +36,15 @@ namespace ULTRADROID.API
         /// A null condition means the button is always visible.
         /// </summary>
         public Func<bool> IsVisible { get; set; }
+        /// <summary>
+        /// Optional width in UI layout units. Zero uses the template width.
+        /// </summary>
+        public float Width { get; set; } = 0f;
+        
+        /// <summary>
+        /// Optional height in UI layout units. Zero uses the template height.
+        /// </summary>
+        public float Height { get; set; } = 0f;
+
     }
 }
