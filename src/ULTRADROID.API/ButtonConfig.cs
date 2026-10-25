@@ -68,6 +68,25 @@ namespace ULTRADROID.API
         /// </summary>
         public bool IconPreserveAspect { get; set; } = true;
 
+        /// <summary>
+        /// Optional custom background image file path.
+        /// Relative paths are resolved from the BepInEx plugins folder.
+        /// </summary>
+        public string BackgroundPath { get; set; }
+        
+        /// <summary>
+        /// Optional custom background sprite.
+        /// Takes priority over BackgroundPath.
+        /// </summary>
+        public Sprite Background { get; set; }
+        
+        /// <summary>
+        /// Preserve the background sprite's aspect ratio.
+        /// False stretches it to fill the button.
+        /// </summary>
+        public bool BackgroundPreserveAspect { get; set; } = false;
+
+
 
     }
 }
