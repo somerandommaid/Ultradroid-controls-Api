@@ -813,16 +813,48 @@ namespace ULTRADROID.Core
                     Image image = images[0];
 
                     image.sprite = icon;
-                    image.preserveAspect = true;
+                    image.preserveAspect = config.IconPreserveAspect;
                     image.color = config.ApplyTint
                         ? config.Tint
                         : Color.white;
 
                     image.enabled = true;
                     image.gameObject.SetActive(true);
+                    image.raycastTarget = false;
 
-                    if (addedRootImage)
-                        image.raycastTarget = false;
+                    RectTransform iconRect =
+                        image.GetComponent<RectTransform>();
+
+                    RectTransform buttonRect =
+                        clone.GetComponent<RectTransform>();
+
+                    if (iconRect != null && buttonRect != null)
+                    {
+                        float buttonWidth = buttonRect.rect.width;
+                        float buttonHeight = buttonRect.rect.height;
+
+                        float iconWidth =
+                            config.IconWidth > 0f &&
+                            !float.IsNaN(config.IconWidth) &&
+                            !float.IsInfinity(config.IconWidth)
+                                ? config.IconWidth
+                                : buttonWidth;
+
+                        float iconHeight =
+                            config.IconHeight > 0f &&
+                            !float.IsNaN(config.IconHeight) &&
+                            !float.IsInfinity(config.IconHeight)
+                                ? config.IconHeight
+                                : buttonHeight;
+
+                        iconRect.anchorMin = new Vector2(0.5f, 0.5f);
+                        iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+                        iconRect.pivot = new Vector2(0.5f, 0.5f);
+                        iconRect.sizeDelta =
+                            new Vector2(iconWidth, iconHeight);
+                        iconRect.anchoredPosition = config.IconPosition;
+                        iconRect.localScale = Vector3.one;
+                    }
                 }
             }
 
