@@ -803,6 +803,27 @@ namespace ULTRADROID.Core
 
             HideOriginalVisuals(clone);
 
+            foreach (Graphic graphic in
+                     clone.GetComponentsInChildren<Graphic>(true))
+            {
+                if (graphic == null)
+                    continue;
+
+                string spriteInfo = "";
+
+                Image image = graphic.TryCast<Image>();
+                if (image != null)
+                    spriteInfo = " | sprite=" +
+                        (image.sprite != null ? image.sprite.name : "null");
+
+                ControlsRuntimeLog.Info(
+                    "[ULTRADROID BG DEBUG] object=" +
+                    graphic.gameObject.name +
+                    " | type=" + graphic.GetType().FullName +
+                    " | enabled=" + graphic.enabled +
+                    spriteInfo);
+            }
+
             if (config.HideBackground)
             {
                 // Hide only the original root Image on the cloned button.
