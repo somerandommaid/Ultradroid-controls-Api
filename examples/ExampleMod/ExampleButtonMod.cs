@@ -48,9 +48,11 @@ namespace ULTRADROID.ExampleMod
             {
                 Id = "ULTRADROID.Example.Demo",
                 Label = "DEMO",
+                Width = 500f,
+                Height = 200f,
                 IconPath = "ultradroid-demo-icon.png",   // Core will load this
                 PositionOffset = new Vector2(120f, 90f),
-                ApplyTint = false,
+                ApplyTint = true,
                 ScaleMultiplier = 1f,
                 OnClick = () =>
                 {
