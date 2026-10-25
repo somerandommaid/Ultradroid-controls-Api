@@ -48,6 +48,7 @@ namespace ULTRADROID.ExampleMod
             {
                 Id = "ULTRADROID.Example.Demo",
                 Label = "",
+                IconOpacity = 0.5f,
                 Width = 100f,
                 Height = 40f,
                 IconWidth = 100f,
