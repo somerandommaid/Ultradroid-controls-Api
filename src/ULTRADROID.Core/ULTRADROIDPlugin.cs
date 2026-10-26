@@ -16,6 +16,8 @@ namespace ULTRADROID.Core
 
             try
             {
+                ControlsPointerHandler.Register();
+                
                 ControlsRuntime runtime = AddComponent<ControlsRuntime>();
             }
             catch (System.Exception ex)
