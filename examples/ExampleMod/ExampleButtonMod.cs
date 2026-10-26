@@ -27,6 +27,7 @@ namespace ULTRADROID.ExampleMod
         public override void Load()
         {
             sceneLoadedCallback = OnSceneLoaded;
+
             sceneLoadedHandler =
                 Il2CppInterop.Runtime.DelegateSupport
                     .ConvertDelegate<UnityAction<Scene, LoadSceneMode>>(
@@ -51,63 +52,80 @@ namespace ULTRADROID.ExampleMod
             {
                 Id = "ULTRADROID.Example.Demo",
                 Label = "Test",
+
                 LabelFontSize = 12f,
                 LabelColor = Color.red,
                 LabelAlignment = ButtonLabelAlignment.MiddleCenter,
                 LabelPosition = new Vector2(0f, 30f),
                 LabelOpacity = 0.5f,
+
                 BackgroundPath = "Background.png",
                 TransparentButton = true,
                 IconOpacity = 0.5f,
+
                 RoundedCorners = true,
                 CornerRadius = 20f,
+
                 Width = 100f,
                 Height = 40f,
                 Rotation = 45f,
+
                 IconWidth = 100f,
                 IconHeight = 40f,
                 IconPosition = Vector2.zero,
                 IconPreserveAspect = true,
                 IconPath = "ultradroid-demo-icon.png",
+
                 PositionOffset = new Vector2(120f, 90f),
                 HideBackground = true,
                 ApplyTint = true,
                 ScaleMultiplier = 1f,
 
+                // Interaction settings
                 HoldDuration = 0.5f,
                 RepeatInterval = 0.2f,
                 DoubleClickInterval = 0.3f,
 
+                RepeatWhileHeld = true,
+                ToggleMode = true,
+
+                // Fires when the button is clicked
                 OnClick = () =>
                 {
                     Log.LogInfo("[ULTRADROID Example] CLICK");
                 },
 
+                // Fires when the press begins
                 OnPress = () =>
                 {
                     Log.LogInfo("[ULTRADROID Example] PRESS");
                 },
 
+                // Fires when the press ends
                 OnRelease = () =>
                 {
                     Log.LogInfo("[ULTRADROID Example] RELEASE");
                 },
 
+                // Fires after holding for HoldDuration
                 OnHold = () =>
                 {
                     Log.LogInfo("[ULTRADROID Example] HOLD");
                 },
 
+                // Repeats while the button remains held
                 OnRepeat = () =>
                 {
                     Log.LogInfo("[ULTRADROID Example] REPEAT");
                 },
 
+                // Fires when two clicks occur within DoubleClickInterval
                 OnDoubleClick = () =>
                 {
                     Log.LogInfo("[ULTRADROID Example] DOUBLE CLICK");
                 },
 
+                // Alternates between true and false on successive clicks
                 OnToggle = (enabled) =>
                 {
                     Log.LogInfo(
