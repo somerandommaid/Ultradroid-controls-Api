@@ -8,6 +8,8 @@ using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using ULTRADROID.API;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.EventSystems;
+using Il2CppInterop.Runtime.Injection;
 using UnityEngine.InputSystem.OnScreen;
 using UnityEngine.UI;
 using TMPro;
@@ -47,6 +49,11 @@ namespace ULTRADROID.Core
 
         private bool editableControlsRebuildPending;
         private bool rebuildMethodErrorLogged;
+
+        static ControlsRuntimeLogic()
+        {
+            ClassInjector.RegisterTypeInIl2Cpp<ControlsPointerHandler>();
+        }
 
         private static readonly MethodInfo InitEditableControlsMethod =
             typeof(TouchManager).GetMethod(
@@ -121,7 +128,10 @@ namespace ULTRADROID.Core
                 RebuildEditableControlsIfNeeded(manager);
 
                 foreach (RuntimeButton runtimeButton in activeButtons.Values)
+                {
                     ApplyVisibility(runtimeButton);
+                    UpdateButtonInteraction(runtimeButton);
+                }
 
                 lastReportedError = string.Empty;
             }
@@ -531,7 +541,6 @@ namespace ULTRADROID.Core
 
             ApplyVisuals(clone, config);
             LogVisibilityDiagnostics(clone);
-            BindClick(clone, registration, manager);
 
             // Register only the cloned button, never the whole InGame root.
             if (!manager.inGameButtons.Contains(clone))
@@ -627,6 +636,9 @@ namespace ULTRADROID.Core
 
             var runtimeButton =
                 new RuntimeButton(registration, control);
+
+            AttachPointerHandler(clone, runtimeButton, manager);
+            BindClick(clone, registration, manager, runtimeButton);
 
             if (registration.Handle != null)
             {
@@ -1412,10 +1424,142 @@ namespace ULTRADROID.Core
             return fallbackDemoIcon;
         }
 
+        private void AttachPointerHandler(
+            GameObject clone,
+            RuntimeButton runtimeButton,
+            TouchManager manager)
+        {
+            if (clone == null || runtimeButton == null)
+                return;
+
+            ControlsPointerHandler handler =
+                clone.GetComponent<ControlsPointerHandler>();
+
+            if (handler == null)
+                handler = clone.AddComponent<ControlsPointerHandler>();
+
+            runtimeButton.PointerHandler = handler;
+
+            handler.Pressed = () =>
+            {
+                if (IsLayoutEditorActive(manager) || IsGameplayMenuOpen())
+                    return;
+
+                ButtonConfig config = runtimeButton.Registration.Config;
+                if (config == null)
+                    return;
+
+                runtimeButton.IsPressed = true;
+                runtimeButton.HoldTriggered = false;
+                runtimeButton.PressStartedAt = Time.unscaledTime;
+
+                float holdDuration = Mathf.Max(0f, config.HoldDuration);
+                runtimeButton.NextRepeatAt =
+                    Time.unscaledTime + holdDuration;
+
+                InvokeSafely(config.Id, "OnPress", () =>
+                    config.OnPress?.Invoke());
+            };
+
+            handler.Released = () =>
+            {
+                EndButtonPress(runtimeButton, false);
+            };
+
+            handler.Cancelled = () =>
+            {
+                EndButtonPress(runtimeButton, true);
+            };
+        }
+
+        private void EndButtonPress(
+            RuntimeButton runtimeButton,
+            bool cancelled)
+        {
+            if (runtimeButton == null || !runtimeButton.IsPressed)
+                return;
+
+            runtimeButton.IsPressed = false;
+
+            ButtonConfig config = runtimeButton.Registration.Config;
+
+            if (config != null)
+            {
+                // Release is also delivered on cancellation to prevent
+                // mods from getting stuck in a held state.
+                InvokeSafely(config.Id, "OnRelease", () =>
+                    config.OnRelease?.Invoke());
+            }
+        }
+
+        private void InvokeSafely(
+            string id,
+            string eventName,
+            Action callback)
+        {
+            try
+            {
+                callback?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                ControlsRuntimeLog.Error(
+                    "[ULTRADROID] " + eventName +
+                    " callback failed for '" + id + "': " + ex);
+            }
+        }
+
+        private void UpdateButtonInteraction(RuntimeButton runtimeButton)
+        {
+            if (runtimeButton == null ||
+                runtimeButton.Registration?.Config == null)
+                return;
+
+            ButtonConfig config = runtimeButton.Registration.Config;
+
+            if (!runtimeButton.IsPressed)
+                return;
+
+            if (IsLayoutEditorActive(activeManager) || IsGameplayMenuOpen())
+            {
+                EndButtonPress(runtimeButton, true);
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            float holdDuration = Mathf.Max(0f, config.HoldDuration);
+
+            if (!runtimeButton.HoldTriggered &&
+                now - runtimeButton.PressStartedAt >= holdDuration)
+            {
+                runtimeButton.HoldTriggered = true;
+
+                InvokeSafely(config.Id, "OnHold", () =>
+                    config.OnHold?.Invoke());
+
+                runtimeButton.NextRepeatAt =
+                    now + Mathf.Max(0.01f, config.RepeatInterval);
+            }
+
+            if (config.RepeatWhileHeld &&
+                runtimeButton.HoldTriggered &&
+                now >= runtimeButton.NextRepeatAt)
+            {
+                float interval = Mathf.Max(0.01f, config.RepeatInterval);
+
+                // Avoid firing a large backlog of repeats after a lag spike.
+                runtimeButton.NextRepeatAt = now + interval;
+
+                InvokeSafely(config.Id, "OnRepeat", () =>
+                    config.OnRepeat?.Invoke());
+            }
+        }
+
         private void BindClick(
             GameObject clone,
             ButtonRegistration registration,
-            TouchManager manager)
+            TouchManager manager,
+            RuntimeButton runtimeButton)
         {
             if (clone == null || registration == null)
                 return;
@@ -1458,7 +1602,42 @@ namespace ULTRADROID.Core
                         if (IsGameplayMenuOpen())
                             return;
 
-                        registration.Config?.OnClick?.Invoke();
+                        ButtonConfig config = registration.Config;
+
+                        if (config == null)
+                            return;
+
+                        InvokeSafely(config.Id, "OnClick", () =>
+                            config.OnClick?.Invoke());
+
+                        float now = Time.unscaledTime;
+                        float doubleClickInterval =
+                            Mathf.Max(0.01f, config.DoubleClickInterval);
+
+                        if (runtimeButton != null)
+                        {
+                            if (runtimeButton.HasLastClick &&
+                                now - runtimeButton.LastClickAt <= doubleClickInterval)
+                            {
+                                runtimeButton.HasLastClick = false;
+
+                                InvokeSafely(config.Id, "OnDoubleClick", () =>
+                                    config.OnDoubleClick?.Invoke());
+                            }
+                            else
+                            {
+                                runtimeButton.HasLastClick = true;
+                                runtimeButton.LastClickAt = now;
+                            }
+
+                            if (config.ToggleMode)
+                            {
+                                config.IsToggled = !config.IsToggled;
+
+                                InvokeSafely(config.Id, "OnToggle", () =>
+                                    config.OnToggle?.Invoke(config.IsToggled));
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -1658,6 +1837,75 @@ namespace ULTRADROID.Core
 
             internal ButtonRegistration Registration { get; }
             internal OnScreenButton Control { get; }
+
+            internal ControlsPointerHandler PointerHandler;
+
+            internal bool IsPressed;
+            internal bool HoldTriggered;
+            internal bool HasLastClick;
+
+            internal float PressStartedAt;
+            internal float NextRepeatAt;
+            internal float LastClickAt;
+        }
+    }
+
+    public sealed class ControlsPointerHandler : MonoBehaviour,
+        IPointerDownHandler,
+        IPointerUpHandler,
+        IPointerExitHandler
+    {
+        public Action Pressed;
+        public Action Released;
+        public Action Cancelled;
+
+        private bool isPressed;
+
+        public static void Register()
+        {
+            ClassInjector.RegisterTypeInIl2Cpp<ControlsPointerHandler>();
+        }
+
+        public ControlsPointerHandler(IntPtr ptr) : base(ptr)
+        {
+        }
+
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            if (isPressed)
+                return;
+
+            isPressed = true;
+            Pressed?.Invoke();
+        }
+
+        public void OnPointerUp(PointerEventData eventData)
+        {
+            EndPress();
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            // Keep the press active when the finger moves outside the button.
+            // Pointer-up or component disable ends the press.
+        }
+
+        private void EndPress()
+        {
+            if (!isPressed)
+                return;
+
+            isPressed = false;
+            Released?.Invoke();
+        }
+
+        private void OnDisable()
+        {
+            if (!isPressed)
+                return;
+
+            isPressed = false;
+            Cancelled?.Invoke();
         }
     }
 
