@@ -867,13 +867,55 @@ namespace ULTRADROID.Core
             image.preserveAspect = !config.RoundedCorners &&
                                    config.BackgroundPreserveAspect;
             image.color = new Color(
-                1f, 1f, 1f,
-                ClampOpacity(config.BackgroundOpacity));
+                1f,
+                1f,
+                1f,
+                config.TransparentButton
+                    ? 0f
+                    : ClampOpacity(config.BackgroundOpacity));
             image.raycastTarget = false;
             image.enabled = true;
 
             backgroundObject.SetActive(true);
             backgroundObject.transform.SetAsFirstSibling();
+        }
+
+        private void ApplyTransparentButton(
+            GameObject clone,
+            ButtonConfig config)
+        {
+            if (clone == null || config == null)
+                return;
+
+            if (!config.TransparentButton)
+                return;
+
+            // Hide the original background without disabling the root Graphic.
+            Graphic rootGraphic = clone.GetComponent<Graphic>();
+
+            if (rootGraphic != null)
+            {
+                Color color = rootGraphic.color;
+                color.a = 0f;
+                rootGraphic.color = color;
+            }
+
+            // Hide the optional custom background.
+            Transform background =
+                clone.transform.Find("ULTRADROID_Background");
+
+            if (background != null)
+            {
+                Graphic backgroundGraphic =
+                    background.GetComponent<Graphic>();
+
+                if (backgroundGraphic != null)
+                {
+                    Color color = backgroundGraphic.color;
+                    color.a = 0f;
+                    backgroundGraphic.color = color;
+                }
+            }
         }
 
         private void ApplyVisuals(
@@ -934,6 +976,7 @@ namespace ULTRADROID.Core
             }
 
             ApplyBackground(clone, config);
+            ApplyTransparentButton(clone, config);
 
             Sprite icon = null;
 
@@ -965,14 +1008,12 @@ namespace ULTRADROID.Core
             {
                 Color color = rootGraphic.color;
 
-                if (config.HideBackground)
+                if (config.HideBackground || config.TransparentButton)
                 {
                     color.a = 0f;
                 }
                 else
                 {
-                    // Preserve any alpha contributed by config.Tint when tint
-                    // is applied, then scale by the configured opacity.
                     color.a *= ClampOpacity(config.BackgroundOpacity);
                 }
 
