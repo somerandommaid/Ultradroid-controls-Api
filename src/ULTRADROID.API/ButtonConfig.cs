@@ -43,6 +43,8 @@ namespace ULTRADROID.API
 
         public Action OnClick { get; set; }
 
+        public float Rotation { get; set; } = 0f;
+
         /// <summary>
         /// Optional condition determining whether this button is visible.
         /// A null condition means the button is always visible.
