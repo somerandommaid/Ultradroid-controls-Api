@@ -124,8 +124,11 @@ namespace ULTRADROID.Core
 
                 foreach (RuntimeButton runtimeButton in activeButtons.Values)
                 {
+                    UpdateCooldown(runtimeButton);
+                    UpdateButtonEffects(runtimeButton);
                     ApplyVisibility(runtimeButton);
                     UpdateButtonInteraction(runtimeButton);
+                    ApplyToggleVisuals(runtimeButton);
                 }
 
                 lastReportedError = string.Empty;
@@ -645,6 +648,20 @@ namespace ULTRADROID.Core
                 new RuntimeButton(registration, control);
 
             runtimeButton.DefaultIcon = defaultIcon;
+            runtimeButton.BaseScale = runtimeButton.Control.transform.localScale;
+
+            runtimeButton.ToggledOnIconCache =
+                config.ToggledOnIcon ??
+                LoadIconFromPath(config.ToggledOnIconPath);
+
+            runtimeButton.ToggledOffIconCache =
+                config.ToggledOffIcon ??
+                LoadIconFromPath(config.ToggledOffIconPath);
+
+            runtimeButton.CooldownWasActive = config.IsOnCooldown;
+            runtimeButton.CooldownCompletionReported = false;
+            runtimeButton.LastEffectRequestVersion = config.EffectRequestVersion;
+            runtimeButton.LastFlashRequestVersion = config.FlashRequestVersion;
 
             AttachPointerHandler(clone, runtimeButton, manager);
             BindClick(clone, registration, manager, runtimeButton);
@@ -1245,22 +1262,20 @@ namespace ULTRADROID.Core
             clone.SetActive(true);
         }
 
-        private void ApplyToggleVisuals(RuntimeButton runtimeButton)
+        private void ApplyToggleVisuals(RuntimeButton rb)
         {
-            if (runtimeButton?.Registration?.Config == null ||
-                runtimeButton.Control == null)
+            if (rb?.Registration?.Config == null || rb.Control == null)
                 return;
 
-            ButtonConfig config = runtimeButton.Registration.Config;
-            GameObject buttonObject = runtimeButton.Control.gameObject;
+            ButtonConfig config = rb.Registration.Config;
+            GameObject buttonObject = rb.Control.gameObject;
+
+            Transform iconTransform = buttonObject.transform.Find("ULTRADROID_Icon");
+            Image icon = iconTransform != null
+                ? iconTransform.GetComponent<Image>()
+                : null;
 
             bool isOn = config.IsToggled;
-
-            Sprite configuredStateIcon = isOn
-                ? (config.ToggledOnIcon ??
-                   LoadIconFromPath(config.ToggledOnIconPath))
-                : (config.ToggledOffIcon ??
-                   LoadIconFromPath(config.ToggledOffIconPath));
 
             bool hasStateIcon = isOn
                 ? (config.ToggledOnIcon != null ||
@@ -1268,96 +1283,212 @@ namespace ULTRADROID.Core
                 : (config.ToggledOffIcon != null ||
                    !string.IsNullOrEmpty(config.ToggledOffIconPath));
 
-            Sprite stateIcon = configuredStateIcon != null
-                ? configuredStateIcon
-                : runtimeButton.DefaultIcon;
+            Sprite stateIcon = isOn
+                ? rb.ToggledOnIconCache
+                : rb.ToggledOffIconCache;
 
-            // Restore the default icon when no state-specific icon is configured.
-            if (hasStateIcon || runtimeButton.DefaultIcon != null)
+            if (icon != null)
             {
-                Transform iconTransform =
-                    buttonObject.transform.Find("ULTRADROID_Icon");
+                Sprite desiredIcon = hasStateIcon && stateIcon != null
+                    ? stateIcon
+                    : rb.DefaultIcon;
 
-                Image iconImage = iconTransform != null
-                    ? iconTransform.GetComponent<Image>()
-                    : null;
+                if (desiredIcon != null)
+                    icon.sprite = desiredIcon;
 
-                if (iconImage != null)
+                Color tint = config.ApplyTint ? config.Tint : Color.white;
+
+                bool stateTint = isOn
+                    ? config.ApplyToggledOnTint
+                    : config.ApplyToggledOffTint;
+
+                if (stateTint)
                 {
-                    // A configured but failed-to-load icon should not erase
-                    // the existing icon.
-                    if (stateIcon != null)
-                        iconImage.sprite = stateIcon;
-
-                    iconImage.preserveAspect = config.IconPreserveAspect;
-                    iconImage.raycastTarget = false;
-                    iconImage.enabled = true;
-                    iconImage.gameObject.SetActive(true);
-
-                    RectTransform iconRect =
-                        iconImage.GetComponent<RectTransform>();
-
-                    RectTransform buttonRect =
-                        buttonObject.GetComponent<RectTransform>();
-
-                    if (iconRect != null && buttonRect != null)
-                    {
-                        float width = config.IconWidth > 0f
-                            ? config.IconWidth
-                            : buttonRect.rect.width;
-
-                        float height = config.IconHeight > 0f
-                            ? config.IconHeight
-                            : buttonRect.rect.height;
-
-                        iconRect.sizeDelta = new Vector2(width, height);
-                        iconRect.anchoredPosition = config.IconPosition;
-                    }
+                    tint = isOn
+                        ? config.ToggledOnTint
+                        : config.ToggledOffTint;
                 }
-            }
 
-            // Choose the state tint, falling back to the normal icon tint.
-            bool applyStateTint = isOn
-                ? config.ApplyToggledOnTint
-                : config.ApplyToggledOffTint;
+                if (!config.Interactable)
+                {
+                    tint = Color.Lerp(tint, config.DisabledTint, 0.75f);
+                }
+                else if (config.PressedVisualsEnabled && rb.IsPressed)
+                {
+                    tint = Color.Lerp(tint, config.PressedTint, 0.65f);
+                }
 
-            if (applyStateTint)
-            {
-                Color tint = isOn
-                    ? config.ToggledOnTint
-                    : config.ToggledOffTint;
+                if (rb.FlashEndsAt > Time.unscaledTime)
+                {
+                    float duration = Mathf.Max(0.01f, config.FlashDuration);
+                    float remaining = Mathf.Clamp01(
+                        (rb.FlashEndsAt - Time.unscaledTime) / duration);
+
+                    tint = Color.Lerp(tint, config.FlashColor, remaining);
+                }
 
                 tint.a *= ClampOpacity(config.IconOpacity);
 
-                Transform iconTransform =
-                    buttonObject.transform.Find("ULTRADROID_Icon");
+                if (!config.Interactable)
+                    tint.a *= ClampOpacity(config.DisabledOpacity);
 
-                Image iconImage = iconTransform != null
-                    ? iconTransform.GetComponent<Image>()
-                    : null;
-
-                if (iconImage != null)
-                    iconImage.color = tint;
+                icon.color = tint;
+                icon.preserveAspect = config.IconPreserveAspect;
+                icon.raycastTarget = false;
+                icon.enabled = true;
+                icon.gameObject.SetActive(true);
             }
-            else
+
+            float scaleMultiplier = 1f;
+
+            if (config.PressedVisualsEnabled &&
+                rb.IsPressed &&
+                config.Interactable)
             {
-                // Restore the normal icon tint when state tinting is not enabled.
-                Transform iconTransform =
-                    buttonObject.transform.Find("ULTRADROID_Icon");
-
-                Image iconImage = iconTransform != null
-                    ? iconTransform.GetComponent<Image>()
-                    : null;
-
-                if (iconImage != null)
-                {
-                    Color normalTint =
-                        config.ApplyTint ? config.Tint : Color.white;
-
-                    normalTint.a *= ClampOpacity(config.IconOpacity);
-                    iconImage.color = normalTint;
-                }
+                scaleMultiplier *= Mathf.Clamp(
+                    config.PressedScaleMultiplier, 0.1f, 2f);
             }
+
+            float now = Time.unscaledTime;
+
+            if (config.PulseEnabled && rb.EffectEndsAt > now)
+            {
+                float duration = Mathf.Max(0.01f, config.PulseDuration);
+
+                float progress = Mathf.Clamp01(
+                    (now - rb.EffectStartedAt) / duration);
+
+                float envelope = Mathf.Sin(progress * Mathf.PI);
+
+                scaleMultiplier *= Mathf.Lerp(
+                    1f,
+                    Mathf.Clamp(config.PulseScaleMultiplier, 0.1f, 3f),
+                    envelope);
+            }
+
+            buttonObject.transform.localScale = rb.BaseScale * scaleMultiplier;
+
+            Image overlay = EnsureCooldownOverlay(rb);
+
+            if (overlay != null)
+            {
+                bool show = config.ShowCooldownOverlay &&
+                            config.IsOnCooldown &&
+                            config.Interactable;
+
+                overlay.color = config.CooldownOverlayColor;
+
+                overlay.fillAmount = config.CooldownDuration > 0f
+                    ? Mathf.Clamp01(
+                        config.CooldownRemaining /
+                        Mathf.Max(config.CooldownDuration, 0.001f))
+                    : 0f;
+
+                overlay.enabled = show;
+                overlay.gameObject.SetActive(true);
+                overlay.transform.SetAsLastSibling();
+            }
+        }
+
+        private Image EnsureCooldownOverlay(RuntimeButton rb)
+        {
+            if (rb?.Control == null)
+                return null;
+
+            if (rb.CooldownOverlay != null)
+                return rb.CooldownOverlay;
+
+            Transform existing = rb.Control.transform.Find("ULTRADROID_Cooldown");
+
+            if (existing != null)
+            {
+                rb.CooldownOverlay = existing.GetComponent<Image>();
+                if (rb.CooldownOverlay != null)
+                    return rb.CooldownOverlay;
+            }
+
+            GameObject overlayObject = new GameObject(
+                "ULTRADROID_Cooldown",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image));
+
+            overlayObject.transform.SetParent(rb.Control.transform, false);
+
+            RectTransform rect = overlayObject.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.localScale = Vector3.one;
+
+            Image overlay = overlayObject.GetComponent<Image>();
+            overlay.raycastTarget = false;
+            overlay.type = Image.Type.Filled;
+            overlay.fillMethod = Image.FillMethod.Radial360;
+            overlay.fillOrigin = (int)Image.Origin360.Top;
+            overlay.fillClockwise = true;
+            overlay.fillAmount = 0f;
+            overlay.enabled = false;
+
+            overlayObject.SetActive(true);
+            overlay.transform.SetAsLastSibling();
+
+            rb.CooldownOverlay = overlay;
+            return overlay;
+        }
+
+        private void UpdateButtonEffects(RuntimeButton rb)
+        {
+            if (rb?.Registration?.Config == null)
+                return;
+
+            ButtonConfig config = rb.Registration.Config;
+
+            int pulseVersion = config.EffectRequestVersion;
+
+            if (pulseVersion != rb.LastEffectRequestVersion)
+            {
+                rb.LastEffectRequestVersion = pulseVersion;
+                rb.EffectStartedAt = Time.unscaledTime;
+                rb.EffectEndsAt = rb.EffectStartedAt +
+                    Mathf.Max(0.01f, config.PulseDuration);
+            }
+
+            int flashVersion = config.FlashRequestVersion;
+
+            if (flashVersion != rb.LastFlashRequestVersion)
+            {
+                rb.LastFlashRequestVersion = flashVersion;
+                rb.FlashEndsAt = Time.unscaledTime +
+                    Mathf.Max(0.01f, config.FlashDuration);
+            }
+        }
+
+        private void UpdateCooldown(RuntimeButton rb)
+        {
+            if (rb?.Registration?.Config == null)
+                return;
+
+            ButtonConfig config = rb.Registration.Config;
+            bool active = config.IsOnCooldown;
+
+            if (rb.CooldownWasActive &&
+                !active &&
+                !rb.CooldownCompletionReported)
+            {
+                rb.CooldownCompletionReported = true;
+
+                InvokeSafely(
+                    config.Id,
+                    "OnCooldownComplete",
+                    () => config.OnCooldownComplete?.Invoke());
+            }
+
+            if (active)
+                rb.CooldownCompletionReported = false;
+
+            rb.CooldownWasActive = active;
         }
 
         private void CreateLegacyLabel(
@@ -1585,6 +1716,9 @@ namespace ULTRADROID.Core
                 if (config == null)
                     return;
 
+                if (!config.Interactable || config.IsOnCooldown)
+                    return;
+
                 runtimeButton.IsPressed = true;
                 runtimeButton.HoldTriggered = false;
                 runtimeButton.PressStartedAt = Time.unscaledTime;
@@ -1678,6 +1812,14 @@ namespace ULTRADROID.Core
 
             ButtonConfig config = runtimeButton.Registration.Config;
 
+            if (!config.Interactable || config.IsOnCooldown)
+            {
+                if (runtimeButton.IsPressed)
+                    EndButtonPress(runtimeButton, true);
+
+                return;
+            }
+
             if (!runtimeButton.IsPressed)
                 return;
 
@@ -1766,6 +1908,9 @@ namespace ULTRADROID.Core
                         ButtonConfig config = registration.Config;
 
                         if (config == null)
+                            return;
+
+                        if (!config.Interactable || config.IsOnCooldown)
                             return;
 
                         InvokeSafely(config.Id, "OnClick", () =>
@@ -2003,6 +2148,22 @@ namespace ULTRADROID.Core
 
             internal ControlsPointerHandler PointerHandler;
             internal Sprite DefaultIcon;
+
+            internal Vector3 BaseScale;
+            internal Image CooldownOverlay;
+
+            internal Sprite ToggledOnIconCache;
+            internal Sprite ToggledOffIconCache;
+
+            internal float EffectStartedAt;
+            internal float EffectEndsAt;
+            internal int LastEffectRequestVersion;
+
+            internal float FlashEndsAt;
+            internal int LastFlashRequestVersion;
+
+            internal bool CooldownWasActive;
+            internal bool CooldownCompletionReported;
 
             internal bool IsPressed;
             internal bool HoldTriggered;
