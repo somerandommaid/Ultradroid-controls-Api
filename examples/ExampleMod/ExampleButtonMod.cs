@@ -23,7 +23,6 @@ namespace ULTRADROID.ExampleMod
         private Action<Scene, LoadSceneMode> sceneLoadedCallback;
         private UnityAction<Scene, LoadSceneMode> sceneLoadedHandler;
         private bool buttonRegistered;
-        private bool toggleState;
 
         public override void Load()
         {
