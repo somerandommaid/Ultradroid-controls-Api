@@ -65,6 +65,7 @@ namespace ULTRADROID.Core
         private string lastReportedError = string.Empty;
 
         private static Sprite fallbackDemoIcon;
+        private static Sprite roundedBackgroundSprite;
 
         private static readonly List<UnityEngine.Object> keepAlive =
             new List<UnityEngine.Object>();
@@ -744,6 +745,62 @@ namespace ULTRADROID.Core
             }
         }
 
+        private Sprite LoadRoundedBackgroundSprite()
+        {
+            if (roundedBackgroundSprite != null)
+                return roundedBackgroundSprite;
+
+            Texture2D texture = new Texture2D(
+                64, 64, TextureFormat.RGBA32, false);
+
+            Color32[] pixels = new Color32[64 * 64];
+
+            const float radius = 12f;
+
+            for (int y = 0; y < 64; y++)
+            {
+                for (int x = 0; x < 64; x++)
+                {
+                    float px = x < 32 ? radius : 63f - radius;
+                    float py = y < 32 ? radius : 63f - radius;
+
+                    float dx = Mathf.Max(0f, Mathf.Abs(x - 31.5f) - (31.5f - radius));
+                    float dy = Mathf.Max(0f, Mathf.Abs(y - 31.5f) - (31.5f - radius));
+
+                    bool inside = dx * dx + dy * dy <= radius * radius;
+
+                    pixels[y * 64 + x] = inside
+                        ? new Color32(255, 255, 255, 255)
+                        : new Color32(255, 255, 255, 0);
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply();
+
+            roundedBackgroundSprite = Sprite.Create(
+                texture,
+                new Rect(0, 0, 64, 64),
+                new Vector2(0.5f, 0.5f),
+                100f,
+                0,
+                SpriteMeshType.FullRect,
+                new Vector4(20f, 20f, 20f, 20f));
+
+            keepAlive.Add(texture);
+            keepAlive.Add(roundedBackgroundSprite);
+
+            return roundedBackgroundSprite;
+        }
+
+        private float ClampCornerRadius(float radius)
+        {
+            if (float.IsNaN(radius) || float.IsInfinity(radius))
+                return 12f;
+
+            return Mathf.Clamp(radius, 0f, 31f);
+        }
+
         private void ApplyBackground(
             GameObject clone,
             ButtonConfig config)
@@ -759,7 +816,9 @@ namespace ULTRADROID.Core
                 background = LoadIconFromPath(config.BackgroundPath);
             }
 
-            // No custom sprite: leave the existing background unchanged.
+            if (config.RoundedCorners)
+                background = LoadRoundedBackgroundSprite();
+
             if (background == null)
                 return;
 
@@ -802,18 +861,18 @@ namespace ULTRADROID.Core
                 image = backgroundObject.AddComponent<Image>();
 
             image.sprite = background;
-            image.preserveAspect = config.BackgroundPreserveAspect;
+            image.type = config.RoundedCorners
+                ? Image.Type.Sliced
+                : Image.Type.Simple;
+            image.preserveAspect = !config.RoundedCorners &&
+                                   config.BackgroundPreserveAspect;
             image.color = new Color(
-                1f,
-                1f,
-                1f,
+                1f, 1f, 1f,
                 ClampOpacity(config.BackgroundOpacity));
             image.raycastTarget = false;
             image.enabled = true;
 
             backgroundObject.SetActive(true);
-
-            // Draw the custom background behind the other button contents.
             backgroundObject.transform.SetAsFirstSibling();
         }
 
@@ -1370,17 +1429,17 @@ namespace ULTRADROID.Core
             GameObject buttonObject = runtimeButton.Control != null
                 ? runtimeButton.Control.gameObject
                 : null;
-                
-           EditableTouchControl editable =
-           buttonObject.GetComponent<EditableTouchControl>();
-           
-           bool editing = IsLayoutEditorActive(activeManager);
-           if (editable != null && editable.enabled != editing)
-               editable.enabled = editing;
-
 
             if (buttonObject == null)
                 return;
+
+            EditableTouchControl editable =
+                buttonObject.GetComponent<EditableTouchControl>();
+
+            bool editing = IsLayoutEditorActive(activeManager);
+
+            if (editable != null && editable.enabled != editing)
+                editable.enabled = editing;
 
             if (editing)
             {
