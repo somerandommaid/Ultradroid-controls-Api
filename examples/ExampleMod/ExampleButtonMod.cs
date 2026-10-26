@@ -23,12 +23,16 @@ namespace ULTRADROID.ExampleMod
         private Action<Scene, LoadSceneMode> sceneLoadedCallback;
         private UnityAction<Scene, LoadSceneMode> sceneLoadedHandler;
         private bool buttonRegistered;
+        private bool toggleState;
 
         public override void Load()
         {
             sceneLoadedCallback = OnSceneLoaded;
-            sceneLoadedHandler = Il2CppInterop.Runtime.DelegateSupport
-                .ConvertDelegate<UnityAction<Scene, LoadSceneMode>>(sceneLoadedCallback);
+            sceneLoadedHandler =
+                Il2CppInterop.Runtime.DelegateSupport
+                    .ConvertDelegate<UnityAction<Scene, LoadSceneMode>>(
+                        sceneLoadedCallback
+                    );
 
             SceneManager.sceneLoaded += sceneLoadedHandler;
         }
@@ -65,14 +69,51 @@ namespace ULTRADROID.ExampleMod
                 IconHeight = 40f,
                 IconPosition = Vector2.zero,
                 IconPreserveAspect = true,
-                IconPath = "ultradroid-demo-icon.png",   // Core will load this
+                IconPath = "ultradroid-demo-icon.png",
                 PositionOffset = new Vector2(120f, 90f),
                 HideBackground = true,
                 ApplyTint = true,
                 ScaleMultiplier = 1f,
+
+                HoldDuration = 0.5f,
+                RepeatInterval = 0.2f,
+                DoubleClickInterval = 0.3f,
+
                 OnClick = () =>
                 {
-                    Log.LogInfo("[ULTRADROID Example] Demo button clicked.");
+                    Log.LogInfo("[ULTRADROID Example] CLICK");
+                },
+
+                OnPress = () =>
+                {
+                    Log.LogInfo("[ULTRADROID Example] PRESS");
+                },
+
+                OnRelease = () =>
+                {
+                    Log.LogInfo("[ULTRADROID Example] RELEASE");
+                },
+
+                OnHold = () =>
+                {
+                    Log.LogInfo("[ULTRADROID Example] HOLD");
+                },
+
+                OnRepeat = () =>
+                {
+                    Log.LogInfo("[ULTRADROID Example] REPEAT");
+                },
+
+                OnDoubleClick = () =>
+                {
+                    Log.LogInfo("[ULTRADROID Example] DOUBLE CLICK");
+                },
+
+                OnToggle = (enabled) =>
+                {
+                    Log.LogInfo(
+                        "[ULTRADROID Example] TOGGLE: " + enabled
+                    );
                 }
             });
         }
