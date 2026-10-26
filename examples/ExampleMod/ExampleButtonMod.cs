@@ -60,6 +60,7 @@ namespace ULTRADROID.ExampleMod
                 CornerRadius = 20f,
                 Width = 100f,
                 Height = 40f,
+                Rotation = 45f,
                 IconWidth = 100f,
                 IconHeight = 40f,
                 IconPosition = Vector2.zero,
