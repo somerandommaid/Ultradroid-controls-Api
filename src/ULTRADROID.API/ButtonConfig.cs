@@ -4,6 +4,19 @@ using UnityEngine;
 
 namespace ULTRADROID.API
 {
+    public enum ButtonLabelAlignment
+    {
+        UpperLeft,
+        UpperCenter,
+        UpperRight,
+        MiddleLeft,
+        MiddleCenter,
+        MiddleRight,
+        LowerLeft,
+        LowerCenter,
+        LowerRight
+    }
+
     /// <summary>
     /// Configuration for a custom ULTRAKILL mobile HUD button.
     /// </summary>
@@ -32,15 +45,15 @@ namespace ULTRADROID.API
 
         /// <summary>
         /// Optional condition determining whether this button is visible.
-        /// Evaluated by the Controls runtime every frame.
         /// A null condition means the button is always visible.
         /// </summary>
         public Func<bool> IsVisible { get; set; }
+
         /// <summary>
         /// Optional width in UI layout units. Zero uses the template width.
         /// </summary>
         public float Width { get; set; } = 0f;
-        
+
         /// <summary>
         /// Optional height in UI layout units. Zero uses the template height.
         /// </summary>
@@ -51,20 +64,20 @@ namespace ULTRADROID.API
         /// Zero uses the button's width.
         /// </summary>
         public float IconWidth { get; set; } = 0f;
-        
+
         /// <summary>
         /// Optional icon height in UI layout units.
         /// Zero uses the button's height.
         /// </summary>
         public float IconHeight { get; set; } = 0f;
-        
+
         /// <summary>
         /// Icon position relative to the center of the button.
         /// </summary>
         public Vector2 IconPosition { get; set; } = Vector2.zero;
-        
+
         /// <summary>
-        /// Preserve the image's aspect ratio when displaying it.
+        /// Preserve the icon image's aspect ratio.
         /// </summary>
         public bool IconPreserveAspect { get; set; } = true;
 
@@ -73,44 +86,73 @@ namespace ULTRADROID.API
         /// Relative paths are resolved from the BepInEx plugins folder.
         /// </summary>
         public string BackgroundPath { get; set; }
-        
+
         /// <summary>
         /// Optional custom background sprite.
-        /// Takes priority over BackgroundPath.
+        /// Takes priority over BackgroundPath unless RoundedCorners is enabled.
         /// </summary>
         public Sprite Background { get; set; }
-        
+
         /// <summary>
         /// Preserve the background sprite's aspect ratio.
         /// False stretches it to fill the button.
         /// </summary>
         public bool BackgroundPreserveAspect { get; set; } = false;
-        
+
         /// <summary>
         /// Hides the original button background.
         /// </summary>
         public bool HideBackground { get; set; } = false;
 
-        // Opacity values range from 0.0 (transparent) to 1.0 (opaque).
+        /// <summary>
+        /// Background opacity from 0 (transparent) to 1 (opaque).
+        /// </summary>
         public float BackgroundOpacity { get; set; } = 1f;
+
+        /// <summary>
+        /// Icon opacity from 0 (transparent) to 1 (opaque).
+        /// </summary>
         public float IconOpacity { get; set; } = 1f;
+
+        /// <summary>
+        /// Label opacity from 0 (transparent) to 1 (opaque).
+        /// </summary>
         public float LabelOpacity { get; set; } = 1f;
 
-        // Rounded button settings.
-        // A radius of 0 keeps the background unchanged.
+        /// <summary>
+        /// Enables rounded background corners.
+        /// </summary>
         public bool RoundedCorners { get; set; } = false;
-        
-        // Corner radius in UI units.
+
+        /// <summary>
+        /// Corner radius in UI units.
+        /// </summary>
         public float CornerRadius { get; set; } = 12f;
 
-        // Makes the button background invisible while preserving its click area.
+        /// <summary>
+        /// Makes the button background invisible while preserving its click area.
+        /// </summary>
         public bool TransparentButton { get; set; } = false;
 
-        // Custom label appearance
+        /// <summary>
+        /// Label font size.
+        /// </summary>
         public float LabelFontSize { get; set; } = 18f;
+
+        /// <summary>
+        /// Label text color.
+        /// </summary>
         public Color LabelColor { get; set; } = Color.white;
-        public TextAnchor LabelAlignment { get; set; } = TextAnchor.MiddleCenter;
+
+        /// <summary>
+        /// Label alignment, independent of Unity's TextAnchor API type.
+        /// </summary>
+        public ButtonLabelAlignment LabelAlignment { get; set; } =
+            ButtonLabelAlignment.MiddleCenter;
+
+        /// <summary>
+        /// Label position relative to its RectTransform anchors.
+        /// </summary>
         public Vector2 LabelPosition { get; set; } = Vector2.zero;
-        
     }
 }
