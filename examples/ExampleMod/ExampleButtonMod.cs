@@ -61,7 +61,6 @@ namespace ULTRADROID.ExampleMod
                 IconPath = "ultradroid-demo-icon.png",   // Core will load this
                 PositionOffset = new Vector2(120f, 90f),
                 HideBackground = true,
-                BackgroundPath = null,
                 ApplyTint = true,
                 ScaleMultiplier = 1f,
                 OnClick = () =>
