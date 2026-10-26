@@ -49,6 +49,7 @@ namespace ULTRADROID.ExampleMod
                 Id = "ULTRADROID.Example.Demo",
                 Label = "Test",
                 BackgroundPath = "Background.png",
+                TransparentButton = true,
                 IconOpacity = 0.5f,
                 RoundedCorners = true,
                 CornerRadius = 20f,
