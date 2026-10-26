@@ -615,7 +615,14 @@ namespace ULTRADROID.Core
 
             clone.transform.localScale =
                 baseline * Mathf.Max(0.01f, config.ScaleMultiplier);
-
+            
+            // Apply custom button rotation in degrees.
+            if (cloneRect != null)
+            {
+                cloneRect.localRotation =
+                    Quaternion.Euler(0f, 0f, config.Rotation);
+            }
+            
             clone.SetActive(true);
 
             var runtimeButton =
