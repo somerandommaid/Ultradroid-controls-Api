@@ -43,6 +43,70 @@ namespace ULTRADROID.API
 
         public Action OnClick { get; set; }
 
+        
+        // Chapter 3: Better Input Events
+
+        /// <summary>
+        /// Called when the player begins pressing the button.
+        /// </summary>
+        public Action OnPress { get; set; }
+
+        /// <summary>
+        /// Called when the player releases the button.
+        /// </summary>
+        public Action OnRelease { get; set; }
+
+        /// <summary>
+        /// Called once when the hold duration is reached.
+        /// </summary>
+        public Action OnHold { get; set; }
+
+        /// <summary>
+        /// Called repeatedly while held, when repeat is enabled.
+        /// </summary>
+        public Action OnRepeat { get; set; }
+
+        /// <summary>
+        /// Called when the player double-clicks the button.
+        /// </summary>
+        public Action OnDoubleClick { get; set; }
+
+        /// <summary>
+        /// Called whenever the toggle state changes.
+        /// The argument is the new toggle state.
+        /// </summary>
+        public Action<bool> OnToggle { get; set; }
+
+        /// <summary>
+        /// Minimum time in seconds before OnHold fires.
+        /// </summary>
+        public float HoldDuration { get; set; } = 0.5f;
+
+        /// <summary>
+        /// Enables repeated OnRepeat callbacks while held.
+        /// </summary>
+        public bool RepeatWhileHeld { get; set; } = false;
+
+        /// <summary>
+        /// Time in seconds between repeat callbacks.
+        /// </summary>
+        public float RepeatInterval { get; set; } = 0.1f;
+
+        /// <summary>
+        /// Maximum time in seconds between taps for a double-click.
+        /// </summary>
+        public float DoubleClickInterval { get; set; } = 0.3f;
+
+        /// <summary>
+        /// Makes the button switch between on and off after each tap.
+        /// </summary>
+        public bool ToggleMode { get; set; } = false;
+
+        /// <summary>
+        /// Current toggle state. Updated by the runtime when toggled.
+        /// </summary>
+        public bool IsToggled { get; set; } = false;
+
         public float Rotation { get; set; } = 0f;
 
         /// <summary>
