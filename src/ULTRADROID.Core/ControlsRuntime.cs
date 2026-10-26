@@ -1427,6 +1427,17 @@ namespace ULTRADROID.Core
             if (clone == null || runtimeButton == null)
                 return;
 
+            EventTrigger trigger = clone.GetComponent<EventTrigger>();
+
+            if (trigger == null)
+                trigger = clone.AddComponent<EventTrigger>();
+
+            if (trigger.triggers == null)
+                trigger.triggers =
+                    new Il2CppSystem.Collections.Generic.List<EventTrigger.Entry>();
+
+            trigger.triggers.Clear();
+
             ControlsPointerHandler handler =
                 clone.GetComponent<ControlsPointerHandler>();
 
@@ -1449,22 +1460,47 @@ namespace ULTRADROID.Core
                 runtimeButton.PressStartedAt = Time.unscaledTime;
 
                 float holdDuration = Mathf.Max(0f, config.HoldDuration);
-                runtimeButton.NextRepeatAt =
-                    Time.unscaledTime + holdDuration;
+                runtimeButton.NextRepeatAt = Time.unscaledTime + holdDuration;
 
                 InvokeSafely(config.Id, "OnPress", () =>
                     config.OnPress?.Invoke());
             };
 
             handler.Released = () =>
-            {
                 EndButtonPress(runtimeButton, false);
-            };
 
             handler.Cancelled = () =>
-            {
                 EndButtonPress(runtimeButton, true);
-            };
+
+            EventTrigger.Entry downEntry = new EventTrigger.Entry();
+            downEntry.eventID = EventTriggerType.PointerDown;
+            downEntry.callback.AddListener(
+                Il2CppInterop.Runtime.DelegateSupport
+                    .ConvertDelegate<UnityAction<BaseEventData>>(
+                        (Action<BaseEventData>)(data =>
+                            handler.HandlePointerDown(data))));
+
+            trigger.triggers.Add(downEntry);
+
+            EventTrigger.Entry upEntry = new EventTrigger.Entry();
+            upEntry.eventID = EventTriggerType.PointerUp;
+            upEntry.callback.AddListener(
+                Il2CppInterop.Runtime.DelegateSupport
+                    .ConvertDelegate<UnityAction<BaseEventData>>(
+                        (Action<BaseEventData>)(data =>
+                            handler.HandlePointerUp(data))));
+
+            trigger.triggers.Add(upEntry);
+
+            EventTrigger.Entry exitEntry = new EventTrigger.Entry();
+            exitEntry.eventID = EventTriggerType.PointerExit;
+            exitEntry.callback.AddListener(
+                Il2CppInterop.Runtime.DelegateSupport
+                    .ConvertDelegate<UnityAction<BaseEventData>>(
+                        (Action<BaseEventData>)(data =>
+                            handler.HandlePointerUp(data))));
+
+            trigger.triggers.Add(exitEntry);
         }
 
         private void EndButtonPress(
