@@ -105,5 +105,12 @@ namespace ULTRADROID.API
 
         // Makes the button background invisible while preserving its click area.
         public bool TransparentButton { get; set; } = false;
+
+        // Custom label appearance
+        public float LabelFontSize { get; set; } = 18f;
+        public Color LabelColor { get; set; } = Color.white;
+        public TextAnchor LabelAlignment { get; set; } = TextAnchor.MiddleCenter;
+        public Vector2 LabelPosition { get; set; } = Vector2.zero;
+        
     }
 }
