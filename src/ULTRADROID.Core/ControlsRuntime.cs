@@ -634,6 +634,7 @@ namespace ULTRADROID.Core
 
             AttachPointerHandler(clone, runtimeButton, manager);
             BindClick(clone, registration, manager, runtimeButton);
+            ApplyToggleVisuals(runtimeButton);
 
             if (registration.Handle != null)
             {
@@ -1230,6 +1231,118 @@ namespace ULTRADROID.Core
             clone.SetActive(true);
         }
 
+        private void ApplyToggleVisuals(RuntimeButton runtimeButton)
+        {
+            if (runtimeButton?.Registration?.Config == null ||
+                runtimeButton.Control == null)
+                return;
+
+            ButtonConfig config = runtimeButton.Registration.Config;
+            GameObject buttonObject = runtimeButton.Control.gameObject;
+
+            bool isOn = config.IsToggled;
+
+            // Select the icon for the current toggle state.
+            Sprite stateIcon = isOn
+                ? (config.ToggledOnIcon ??
+                   LoadIconFromPath(config.ToggledOnIconPath))
+                : (config.ToggledOffIcon ??
+                   LoadIconFromPath(config.ToggledOffIconPath));
+
+            bool hasStateIcon = isOn
+                ? (config.ToggledOnIcon != null ||
+                   !string.IsNullOrEmpty(config.ToggledOnIconPath))
+                : (config.ToggledOffIcon != null ||
+                   !string.IsNullOrEmpty(config.ToggledOffIconPath));
+
+            // If no state-specific icon is configured, keep the default icon.
+            if (hasStateIcon)
+            {
+                Transform iconTransform =
+                    buttonObject.transform.Find("ULTRADROID_Icon");
+
+                Image iconImage = iconTransform != null
+                    ? iconTransform.GetComponent<Image>()
+                    : null;
+
+                if (iconImage != null)
+                {
+                    // A configured but failed-to-load icon should not erase
+                    // the existing icon.
+                    if (stateIcon != null)
+                        iconImage.sprite = stateIcon;
+
+                    iconImage.preserveAspect = config.IconPreserveAspect;
+                    iconImage.raycastTarget = false;
+                    iconImage.enabled = true;
+                    iconImage.gameObject.SetActive(true);
+
+                    RectTransform iconRect =
+                        iconImage.GetComponent<RectTransform>();
+
+                    RectTransform buttonRect =
+                        buttonObject.GetComponent<RectTransform>();
+
+                    if (iconRect != null && buttonRect != null)
+                    {
+                        float width = config.IconWidth > 0f
+                            ? config.IconWidth
+                            : buttonRect.rect.width;
+
+                        float height = config.IconHeight > 0f
+                            ? config.IconHeight
+                            : buttonRect.rect.height;
+
+                        iconRect.sizeDelta = new Vector2(width, height);
+                        iconRect.anchoredPosition = config.IconPosition;
+                    }
+                }
+            }
+
+            // Choose the state tint, falling back to the normal icon tint.
+            bool applyStateTint = isOn
+                ? config.ApplyToggledOnTint
+                : config.ApplyToggledOffTint;
+
+            if (applyStateTint)
+            {
+                Color tint = isOn
+                    ? config.ToggledOnTint
+                    : config.ToggledOffTint;
+
+                tint.a *= ClampOpacity(config.IconOpacity);
+
+                Transform iconTransform =
+                    buttonObject.transform.Find("ULTRADROID_Icon");
+
+                Image iconImage = iconTransform != null
+                    ? iconTransform.GetComponent<Image>()
+                    : null;
+
+                if (iconImage != null)
+                    iconImage.color = tint;
+            }
+            else
+            {
+                // Restore the normal icon tint when state tinting is not enabled.
+                Transform iconTransform =
+                    buttonObject.transform.Find("ULTRADROID_Icon");
+
+                Image iconImage = iconTransform != null
+                    ? iconTransform.GetComponent<Image>()
+                    : null;
+
+                if (iconImage != null)
+                {
+                    Color normalTint =
+                        config.ApplyTint ? config.Tint : Color.white;
+
+                    normalTint.a *= ClampOpacity(config.IconOpacity);
+                    iconImage.color = normalTint;
+                }
+            }
+        }
+
         private void CreateLegacyLabel(
             GameObject clone,
             string labelText,
@@ -1664,6 +1777,8 @@ namespace ULTRADROID.Core
                             if (config.ToggleMode)
                             {
                                 config.IsToggled = !config.IsToggled;
+
+                                ApplyToggleVisuals(runtimeButton);
 
                                 InvokeSafely(config.Id, "OnToggle", () =>
                                     config.OnToggle?.Invoke(config.IsToggled));
