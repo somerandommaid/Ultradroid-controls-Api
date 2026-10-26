@@ -48,6 +48,11 @@ namespace ULTRADROID.ExampleMod
             {
                 Id = "ULTRADROID.Example.Demo",
                 Label = "Test",
+                LabelFontSize = 8f,
+                LabelColor = Color.red,
+                LabelAlignment = TextAnchor.MiddleCenter,
+                LabelPosition = new Vector2(0f, 10f),
+                LabelOpacity = 0.5f,
                 BackgroundPath = "Background.png",
                 TransparentButton = true,
                 IconOpacity = 0.5f,
