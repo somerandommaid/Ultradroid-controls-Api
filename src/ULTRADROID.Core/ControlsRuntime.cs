@@ -1309,26 +1309,14 @@ namespace ULTRADROID.Core
                 : null;
 
             bool isOn = config.IsToggled;
-
-            Sprite stateIcon = isOn
-                ? rb.ToggledOnIconCache
-                : rb.ToggledOffIconCache;
-
-            Sprite desiredIcon = stateIcon != null
-                ? stateIcon
-                : rb.DefaultIcon;
-
+            
             if (icon != null)
             {
-                icon.sprite = desiredIcon;
-
                 Color tint = Color.white;
                 
                 bool stateTint = isOn
                     ? config.ApplyToggledOnTint
                     : config.ApplyToggledOffTint;
-                
-                Color tint = Color.white;
                 
                 if (stateTint)
                 {
