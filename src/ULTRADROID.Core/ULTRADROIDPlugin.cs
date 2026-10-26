@@ -1,3 +1,4 @@
+
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using ULTRADROID.API;
@@ -17,12 +18,15 @@ namespace ULTRADROID.Core
             try
             {
                 ControlsPointerHandler.Register();
-                
-                ControlsRuntime runtime = AddComponent<ControlsRuntime>();
+
+                AddComponent<ControlsRuntime>();
+
+                Log.LogInfo("[ULTRADROID] Controls API runtime started.");
             }
             catch (System.Exception ex)
             {
-                Log.LogError("[ULTRADROID] Runtime startup failed: " + ex);
+                Log.LogError(
+                    "[ULTRADROID] Runtime startup failed: " + ex);
             }
         }
     }
