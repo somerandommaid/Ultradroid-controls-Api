@@ -1328,6 +1328,8 @@ namespace ULTRADROID.Core
                     ? config.ApplyToggledOnTint
                     : config.ApplyToggledOffTint;
                 
+                Color tint = Color.white;
+                
                 if (stateTint)
                 {
                     tint = isOn
