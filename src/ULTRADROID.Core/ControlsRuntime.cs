@@ -1322,17 +1322,21 @@ namespace ULTRADROID.Core
             {
                 icon.sprite = desiredIcon;
 
-                Color tint = config.ApplyTint ? config.Tint : Color.white;
-
+                Color tint = Color.white;
+                
                 bool stateTint = isOn
                     ? config.ApplyToggledOnTint
                     : config.ApplyToggledOffTint;
-
+                
                 if (stateTint)
                 {
                     tint = isOn
                         ? config.ToggledOnTint
                         : config.ToggledOffTint;
+                }
+                else if (config.ApplyTint)
+                {
+                    tint = config.Tint;
                 }
 
                 if (!config.Interactable)
