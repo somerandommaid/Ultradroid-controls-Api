@@ -1,4 +1,3 @@
-
 using System;
 using Il2CppInterop.Runtime.Injection;
 using UnityEngine;
@@ -6,10 +5,7 @@ using UnityEngine.EventSystems;
 
 namespace ULTRADROID.Core
 {
-    public sealed class ControlsPointerHandler : MonoBehaviour,
-        IPointerDownHandler,
-        IPointerUpHandler,
-        IPointerExitHandler
+    public sealed class ControlsPointerHandler : MonoBehaviour
     {
         public Action Pressed;
         public Action Released;
@@ -26,7 +22,7 @@ namespace ULTRADROID.Core
             ClassInjector.RegisterTypeInIl2Cpp<ControlsPointerHandler>();
         }
 
-        void IPointerDownHandler.OnPointerDown(PointerEventData eventData)
+        public void HandlePointerDown(BaseEventData eventData)
         {
             if (isPressed)
                 return;
@@ -35,14 +31,9 @@ namespace ULTRADROID.Core
             Pressed?.Invoke();
         }
 
-        void IPointerUpHandler.OnPointerUp(PointerEventData eventData)
+        public void HandlePointerUp(BaseEventData eventData)
         {
             EndPress();
-        }
-
-        void IPointerExitHandler.OnPointerExit(PointerEventData eventData)
-        {
-            // Keep the press active when the finger moves outside.
         }
 
         private void EndPress()
