@@ -102,5 +102,8 @@ namespace ULTRADROID.API
         
         // Corner radius in UI units.
         public float CornerRadius { get; set; } = 12f;
+
+        // Makes the button background invisible while preserving its click area.
+        public bool TransparentButton { get; set; } = false;
     }
 }
