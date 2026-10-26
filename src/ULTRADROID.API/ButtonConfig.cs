@@ -118,6 +118,68 @@ namespace ULTRADROID.API
         public Sprite ToggledOffIcon { get; set; }
         public bool ApplyToggledOffTint { get; set; } = false;
         public Color ToggledOffTint { get; set; } = Color.white;
+
+        // Chapter 2.2: Pressed visuals
+        public bool PressedVisualsEnabled { get; set; } = true;
+        public Color PressedTint { get; set; } = new Color(0.7f, 0.7f, 0.7f, 1f);
+        public float PressedScaleMultiplier { get; set; } = 0.92f;
+        
+        // Chapter 2.3: Disabled state
+        public bool Interactable { get; set; } = true;
+        public Color DisabledTint { get; set; } = new Color(0.5f, 0.5f, 0.5f, 1f);
+        public float DisabledOpacity { get; set; } = 0.5f;
+
+        // Chapter 2.4: Cooldown
+        public float CooldownDuration { get; set; } = 0f;
+        public bool ShowCooldownOverlay { get; set; } = true;
+        public Color CooldownOverlayColor { get; set; } =
+            new Color(0f, 0f, 0f, 0.65f);
+        
+        /// <summary>Called when a cooldown finishes.</summary>
+        public Action OnCooldownComplete { get; set; }
+        
+        // Chapter 2.5: Pulse and flash
+        public bool PulseEnabled { get; set; } = true;
+        public float PulseScaleMultiplier { get; set; } = 1.12f;
+        public float PulseDuration { get; set; } = 0.2f;
+        public Color FlashColor { get; set; } = Color.white;
+        public float FlashDuration { get; set; } = 0.15f;
+        
+        // Runtime-controlled state
+        private float cooldownEndsAt;
+        private int effectRequestVersion;
+        public bool IsOnCooldown =>
+            UnityEngine.Time.unscaledTime < cooldownEndsAt;
+        public float CooldownRemaining =>
+            Mathf.Max(0f, cooldownEndsAt - UnityEngine.Time.unscaledTime);
+        
+        /// <summary>Starts a cooldown, using unscaled time.</summary>
+        public void StartCooldown(float duration)
+        {
+            duration = float.IsNaN(duration) || float.IsInfinity(duration)
+                ? 0f
+                : Mathf.Max(0f, duration);
+            
+            cooldownEndsAt = UnityEngine.Time.unscaledTime + duration;
+        }
+
+        public void StartCooldown()
+        {
+            StartCooldown(CooldownDuration);
+        }
+        
+        public void CancelCooldown()
+        {
+            cooldownEndsAt = 0f;
+        }
+        
+        /// <summary>Requests a pulse effect on the next runtime update.</summary>
+        public void Pulse()
+        {
+            effectRequestVersion++;
+        }
+        
+        internal int EffectRequestVersion => effectRequestVersion;
         
         public float Rotation { get; set; } = 0f;
 
