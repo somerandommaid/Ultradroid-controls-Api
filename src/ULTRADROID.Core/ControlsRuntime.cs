@@ -1412,11 +1412,12 @@ namespace ULTRADROID.Core
                     return rb.CooldownOverlay;
             }
 
-            GameObject overlayObject = new GameObject(
-                "ULTRADROID_Cooldown",
-                typeof(RectTransform),
-                typeof(CanvasRenderer),
-                typeof(Image));
+            GameObject overlayObject =
+                new GameObject("ULTRADROID_Cooldown");
+
+            overlayObject.AddComponent<RectTransform>();
+            overlayObject.AddComponent<CanvasRenderer>();
+            overlayObject.AddComponent<Image>();
 
             overlayObject.transform.SetParent(rb.Control.transform, false);
 
