@@ -1109,18 +1109,31 @@ namespace ULTRADROID.Core
                 foreach (Text label in
                          clone.GetComponentsInChildren<Text>(true))
                 {
-                    if (label == null)
+                    if (label == null ||
+                        label.gameObject.name == "ULTRADROID_Label")
                         continue;
 
                     label.text = config.Label;
                     label.enabled = true;
                     label.gameObject.SetActive(true);
 
-                    Color labelColor =
-                        config.ApplyTint ? config.Tint : Color.white;
+                    float fontSize = Mathf.Clamp(
+                        config.LabelFontSize, 1f, 300f);
+                    label.fontSize = Mathf.RoundToInt(fontSize);
+                    label.alignment = config.LabelAlignment;
 
-                    labelColor.a *= ClampOpacity(config.LabelOpacity);
-                    label.color = labelColor;
+                    RectTransform rect =
+                        label.GetComponent<RectTransform>();
+
+                    if (rect != null)
+                        rect.anchoredPosition = config.LabelPosition;
+
+                    Color color = config.ApplyTint
+                        ? config.Tint
+                        : config.LabelColor;
+
+                    color.a *= ClampOpacity(config.LabelOpacity);
+                    label.color = color;
                     label.raycastTarget = false;
 
                     foundLabel = true;
@@ -1136,18 +1149,60 @@ namespace ULTRADROID.Core
                     label.enabled = true;
                     label.gameObject.SetActive(true);
 
-                    Color labelColor =
-                        config.ApplyTint ? config.Tint : Color.white;
+                    label.fontSize = Mathf.Clamp(
+                        config.LabelFontSize, 1f, 300f);
+                    label.alignment = (TextAlignmentOptions)
+                        (int)config.LabelAlignment;
 
-                    labelColor.a *= ClampOpacity(config.LabelOpacity);
-                    label.color = labelColor;
+                    RectTransform rect =
+                        label.GetComponent<RectTransform>();
+
+                    if (rect != null)
+                        rect.anchoredPosition = config.LabelPosition;
+
+                    Color color = config.ApplyTint
+                        ? config.Tint
+                        : config.LabelColor;
+
+                    color.a *= ClampOpacity(config.LabelOpacity);
+                    label.color = color;
                     label.raycastTarget = false;
 
                     foundLabel = true;
                 }
 
-                if (!foundLabel)
+                Transform customLabel =
+                    clone.transform.Find("ULTRADROID_Label");
+
+                if (!foundLabel && customLabel == null)
+                {
                     CreateLegacyLabel(clone, config.Label, config);
+                }
+                else if (customLabel != null)
+                {
+                    Text customText = customLabel.GetComponent<Text>();
+
+                    if (customText != null)
+                    {
+                        customText.text = config.Label;
+                        customText.fontSize = Mathf.RoundToInt(
+                            Mathf.Clamp(config.LabelFontSize, 1f, 300f));
+                        customText.alignment = config.LabelAlignment;
+
+                        RectTransform rect =
+                            customLabel.GetComponent<RectTransform>();
+
+                        if (rect != null)
+                            rect.anchoredPosition = config.LabelPosition;
+
+                        Color color = config.ApplyTint
+                            ? config.Tint
+                            : config.LabelColor;
+
+                        color.a *= ClampOpacity(config.LabelOpacity);
+                        customText.color = color;
+                    }
+                }
             }
 
             clone.SetActive(true);
@@ -1171,28 +1226,15 @@ namespace ULTRADROID.Core
                 RectTransform rect =
                     labelObject.AddComponent<RectTransform>();
 
-                if (rect != null)
-                {
-                    rect.anchorMin = Vector2.zero;
-                    rect.anchorMax = Vector2.one;
-                    rect.pivot = new Vector2(0.5f, 0.5f);
-                    rect.anchoredPosition = Vector2.zero;
-                    rect.sizeDelta = Vector2.zero;
-                    rect.localScale = Vector3.one;
-                    rect.localRotation = Quaternion.identity;
-                }
+                rect.anchorMin = Vector2.zero;
+                rect.anchorMax = Vector2.one;
+                rect.pivot = new Vector2(0.5f, 0.5f);
+                rect.anchoredPosition = config.LabelPosition;
+                rect.sizeDelta = Vector2.zero;
+                rect.localScale = Vector3.one;
+                rect.localRotation = Quaternion.identity;
 
                 Text label = labelObject.AddComponent<Text>();
-
-                if (label == null)
-                {
-                    ControlsRuntimeLog.Error(
-                        "[ULTRADROID] Could not create UI Text for label: " +
-                        labelText);
-
-                    UnityEngine.Object.Destroy(labelObject);
-                    return;
-                }
 
                 Font builtinFont =
                     Resources.GetBuiltinResource<Font>("Arial.ttf");
@@ -1208,20 +1250,20 @@ namespace ULTRADROID.Core
 
                 label.font = builtinFont;
                 label.text = labelText;
-                label.fontSize = 18;
+                label.fontSize = Mathf.RoundToInt(
+                    Mathf.Clamp(config.LabelFontSize, 1f, 300f));
                 label.fontStyle = FontStyle.Bold;
-                label.alignment = TextAnchor.MiddleCenter;
+                label.alignment = config.LabelAlignment;
                 label.horizontalOverflow = HorizontalWrapMode.Overflow;
                 label.verticalOverflow = VerticalWrapMode.Overflow;
-                label.resizeTextForBestFit = true;
-                label.resizeTextMinSize = 12;
-                label.resizeTextMaxSize = 24;
+                label.resizeTextForBestFit = false;
 
-                Color labelColor =
-                    config.ApplyTint ? config.Tint : Color.white;
+                Color color = config.ApplyTint
+                    ? config.Tint
+                    : config.LabelColor;
 
-                labelColor.a *= ClampOpacity(config.LabelOpacity);
-                label.color = labelColor;
+                color.a *= ClampOpacity(config.LabelOpacity);
+                label.color = color;
 
                 label.raycastTarget = false;
                 label.supportRichText = false;
@@ -1230,8 +1272,8 @@ namespace ULTRADROID.Core
                 labelObject.SetActive(true);
 
                 ControlsRuntimeLog.Info(
-                    "[ULTRADROID] Created label '" + labelText +
-                    "' on " + clone.name);
+                    "[ULTRADROID] Created custom label '" +
+                    labelText + "' on " + clone.name);
             }
             catch (Exception ex)
             {
