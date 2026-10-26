@@ -21,6 +21,11 @@ namespace ULTRADROID.Core
         {
         }
 
+        public static void Register()
+        {
+            ClassInjector.RegisterTypeInIl2Cpp<ControlsPointerHandler>();
+        }
+
         public void OnPointerDown(PointerEventData eventData)
         {
             if (isPressed)
@@ -37,8 +42,8 @@ namespace ULTRADROID.Core
 
         public void OnPointerExit(PointerEventData eventData)
         {
-            // Keep the press active if the finger moves outside the button.
-            // Pointer-up or component disable will end the press.
+            // Keep the press active while the finger moves outside.
+            // Pointer-up or component disable ends the press.
         }
 
         private void EndPress()
@@ -57,11 +62,6 @@ namespace ULTRADROID.Core
 
             isPressed = false;
             Cancelled?.Invoke();
-        }
-
-        public static void Register()
-        {
-            ClassInjector.RegisterTypeInIl2Cpp<ControlsPointerHandler>();
         }
     }
 }
