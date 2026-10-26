@@ -95,5 +95,12 @@ namespace ULTRADROID.API
         public float BackgroundOpacity { get; set; } = 1f;
         public float IconOpacity { get; set; } = 1f;
         public float LabelOpacity { get; set; } = 1f;
+
+        // Rounded button settings.
+        // A radius of 0 keeps the background unchanged.
+        public bool RoundedCorners { get; set; } = false;
+        
+        // Corner radius in UI units.
+        public float CornerRadius { get; set; } = 12f;
     }
 }
