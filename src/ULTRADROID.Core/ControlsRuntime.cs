@@ -1120,7 +1120,7 @@ namespace ULTRADROID.Core
                     float fontSize = Mathf.Clamp(
                         config.LabelFontSize, 1f, 300f);
                     label.fontSize = Mathf.RoundToInt(fontSize);
-                    label.alignment = config.LabelAlignment;
+                    label.alignment = (TextAnchor)(int)config.LabelAlignment;
 
                     RectTransform rect =
                         label.GetComponent<RectTransform>();
@@ -1151,8 +1151,19 @@ namespace ULTRADROID.Core
 
                     label.fontSize = Mathf.Clamp(
                         config.LabelFontSize, 1f, 300f);
-                    label.alignment = (TextAlignmentOptions)
-                        (int)config.LabelAlignment;
+                    label.alignment = config.LabelAlignment switch
+                    {
+                        ButtonLabelAlignment.UpperLeft => TextAlignmentOptions.TopLeft,
+                        ButtonLabelAlignment.UpperCenter => TextAlignmentOptions.Top,
+                        ButtonLabelAlignment.UpperRight => TextAlignmentOptions.TopRight,
+                        ButtonLabelAlignment.MiddleLeft => TextAlignmentOptions.MidlineLeft,
+                        ButtonLabelAlignment.MiddleCenter => TextAlignmentOptions.Center,
+                        ButtonLabelAlignment.MiddleRight => TextAlignmentOptions.MidlineRight,
+                        ButtonLabelAlignment.LowerLeft => TextAlignmentOptions.BottomLeft,
+                        ButtonLabelAlignment.LowerCenter => TextAlignmentOptions.Bottom,
+                        ButtonLabelAlignment.LowerRight => TextAlignmentOptions.BottomRight,
+                        _ => TextAlignmentOptions.Center
+                    };
 
                     RectTransform rect =
                         label.GetComponent<RectTransform>();
@@ -1187,7 +1198,7 @@ namespace ULTRADROID.Core
                         customText.text = config.Label;
                         customText.fontSize = Mathf.RoundToInt(
                             Mathf.Clamp(config.LabelFontSize, 1f, 300f));
-                        customText.alignment = config.LabelAlignment;
+                        customText.alignment = (TextAnchor)(int)config.LabelAlignment;
 
                         RectTransform rect =
                             customLabel.GetComponent<RectTransform>();
@@ -1253,7 +1264,7 @@ namespace ULTRADROID.Core
                 label.fontSize = Mathf.RoundToInt(
                     Mathf.Clamp(config.LabelFontSize, 1f, 300f));
                 label.fontStyle = FontStyle.Bold;
-                label.alignment = config.LabelAlignment;
+                label.alignment = (TextAnchor)(int)config.LabelAlignment;
                 label.horizontalOverflow = HorizontalWrapMode.Overflow;
                 label.verticalOverflow = VerticalWrapMode.Overflow;
                 label.resizeTextForBestFit = false;
