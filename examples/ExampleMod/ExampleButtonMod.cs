@@ -47,8 +47,11 @@ namespace ULTRADROID.ExampleMod
             buttonHandle = ULTRADROIDControls.AddButton(new ButtonConfig
             {
                 Id = "ULTRADROID.Example.Demo",
-                Label = "",
+                Label = "Test",
+                BackgroundPath = "Background.png",
                 IconOpacity = 0.5f,
+                RoundedCorners = true,
+                CornerRadius = 20f,
                 Width = 100f,
                 Height = 40f,
                 IconWidth = 100f,
