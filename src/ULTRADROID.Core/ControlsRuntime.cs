@@ -535,6 +535,18 @@ namespace ULTRADROID.Core
 
 
             ApplyVisuals(clone, config);
+
+            Transform iconTransform =
+                clone.transform.Find("ULTRADROID_Icon");
+
+            Image iconImage = iconTransform != null
+                ? iconTransform.GetComponent<Image>()
+                : null;
+
+            Sprite defaultIcon = iconImage != null
+                ? iconImage.sprite
+                : null;
+
             LogVisibilityDiagnostics(clone);
 
             // Register only the cloned button, never the whole InGame root.
@@ -631,6 +643,8 @@ namespace ULTRADROID.Core
 
             var runtimeButton =
                 new RuntimeButton(registration, control);
+
+            runtimeButton.DefaultIcon = defaultIcon;
 
             AttachPointerHandler(clone, runtimeButton, manager);
             BindClick(clone, registration, manager, runtimeButton);
@@ -1242,8 +1256,7 @@ namespace ULTRADROID.Core
 
             bool isOn = config.IsToggled;
 
-            // Select the icon for the current toggle state.
-            Sprite stateIcon = isOn
+            Sprite configuredStateIcon = isOn
                 ? (config.ToggledOnIcon ??
                    LoadIconFromPath(config.ToggledOnIconPath))
                 : (config.ToggledOffIcon ??
@@ -1255,8 +1268,12 @@ namespace ULTRADROID.Core
                 : (config.ToggledOffIcon != null ||
                    !string.IsNullOrEmpty(config.ToggledOffIconPath));
 
-            // If no state-specific icon is configured, keep the default icon.
-            if (hasStateIcon)
+            Sprite stateIcon = configuredStateIcon != null
+                ? configuredStateIcon
+                : runtimeButton.DefaultIcon;
+
+            // Restore the default icon when no state-specific icon is configured.
+            if (hasStateIcon || runtimeButton.DefaultIcon != null)
             {
                 Transform iconTransform =
                     buttonObject.transform.Find("ULTRADROID_Icon");
@@ -1985,6 +2002,7 @@ namespace ULTRADROID.Core
             internal OnScreenButton Control { get; }
 
             internal ControlsPointerHandler PointerHandler;
+            internal Sprite DefaultIcon;
 
             internal bool IsPressed;
             internal bool HoldTriggered;
