@@ -816,7 +816,9 @@ namespace ULTRADROID.Core
                 background = LoadIconFromPath(config.BackgroundPath);
             }
 
-            if (config.RoundedCorners)
+            // Only generate the white rounded sprite when no custom
+            // background image was supplied.
+            if (background == null && config.RoundedCorners)
                 background = LoadRoundedBackgroundSprite();
 
             if (background == null)
@@ -948,7 +950,7 @@ namespace ULTRADROID.Core
                     spriteInfo);
             }
 
-            if (config.HideBackground)
+            if (config.HideBackground || config.TransparentButton)
             {
                 foreach (Graphic graphic in
                          clone.GetComponentsInChildren<Graphic>(true))
@@ -995,7 +997,8 @@ namespace ULTRADROID.Core
                          clone.GetComponentsInChildren<Graphic>(true))
                 {
                     if (graphic != null &&
-                        graphic.gameObject.name != "ULTRADROID_Background")
+                        graphic.gameObject.name != "ULTRADROID_Background" &&
+                        graphic.gameObject.name != "ULTRADROID_Label")
                     {
                         graphic.color = config.Tint;
                     }
@@ -1128,9 +1131,7 @@ namespace ULTRADROID.Core
                     if (rect != null)
                         rect.anchoredPosition = config.LabelPosition;
 
-                    Color color = config.ApplyTint
-                        ? config.Tint
-                        : config.LabelColor;
+                    Color color = config.LabelColor;
 
                     color.a *= ClampOpacity(config.LabelOpacity);
                     label.color = color;
@@ -1171,9 +1172,7 @@ namespace ULTRADROID.Core
                     if (rect != null)
                         rect.anchoredPosition = config.LabelPosition;
 
-                    Color color = config.ApplyTint
-                        ? config.Tint
-                        : config.LabelColor;
+                    Color color = config.LabelColor;
 
                     color.a *= ClampOpacity(config.LabelOpacity);
                     label.color = color;
@@ -1206,9 +1205,7 @@ namespace ULTRADROID.Core
                         if (rect != null)
                             rect.anchoredPosition = config.LabelPosition;
 
-                        Color color = config.ApplyTint
-                            ? config.Tint
-                            : config.LabelColor;
+                        Color color = config.LabelColor;
 
                         color.a *= ClampOpacity(config.LabelOpacity);
                         customText.color = color;
@@ -1269,9 +1266,7 @@ namespace ULTRADROID.Core
                 label.verticalOverflow = VerticalWrapMode.Overflow;
                 label.resizeTextForBestFit = false;
 
-                Color color = config.ApplyTint
-                    ? config.Tint
-                    : config.LabelColor;
+                Color color = config.LabelColor;
 
                 color.a *= ClampOpacity(config.LabelOpacity);
                 label.color = color;
