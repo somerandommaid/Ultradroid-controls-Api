@@ -659,7 +659,15 @@ namespace ULTRADROID.Core
                 LoadIconFromPath(config.ToggledOffIconPath);
 
             runtimeButton.CooldownWasActive = config.IsOnCooldown;
-            runtimeButton.CooldownCompletionReported = false;
+            runtimeButton.CooldownCompletionReported = !config.IsOnCooldown;
+            runtimeButton.CooldownDurationAtStart =
+                config.ActiveCooldownDuration;
+
+            runtimeButton.LastCooldownRequestVersion =
+                config.CooldownRequestVersion;
+
+            runtimeButton.LastCooldownCancelVersion =
+                config.CooldownCancelVersion;
             runtimeButton.LastEffectRequestVersion = config.EffectRequestVersion;
             runtimeButton.LastFlashRequestVersion = config.FlashRequestVersion;
 
@@ -1277,24 +1285,17 @@ namespace ULTRADROID.Core
 
             bool isOn = config.IsToggled;
 
-            bool hasStateIcon = isOn
-                ? (config.ToggledOnIcon != null ||
-                   !string.IsNullOrEmpty(config.ToggledOnIconPath))
-                : (config.ToggledOffIcon != null ||
-                   !string.IsNullOrEmpty(config.ToggledOffIconPath));
-
             Sprite stateIcon = isOn
                 ? rb.ToggledOnIconCache
                 : rb.ToggledOffIconCache;
 
+            Sprite desiredIcon = stateIcon != null
+                ? stateIcon
+                : rb.DefaultIcon;
+
             if (icon != null)
             {
-                Sprite desiredIcon = hasStateIcon && stateIcon != null
-                    ? stateIcon
-                    : rb.DefaultIcon;
-
-                if (desiredIcon != null)
-                    icon.sprite = desiredIcon;
+                icon.sprite = desiredIcon;
 
                 Color tint = config.ApplyTint ? config.Tint : Color.white;
 
@@ -1378,10 +1379,10 @@ namespace ULTRADROID.Core
 
                 overlay.color = config.CooldownOverlayColor;
 
-                overlay.fillAmount = config.CooldownDuration > 0f
+                overlay.fillAmount = rb.CooldownDurationAtStart > 0f
                     ? Mathf.Clamp01(
                         config.CooldownRemaining /
-                        Mathf.Max(config.CooldownDuration, 0.001f))
+                        rb.CooldownDurationAtStart)
                     : 0f;
 
                 overlay.enabled = show;
@@ -1392,8 +1393,12 @@ namespace ULTRADROID.Core
 
         private Image EnsureCooldownOverlay(RuntimeButton rb)
         {
-            if (rb?.Control == null)
+            if (rb?.Control == null ||
+                rb.Registration?.Config == null ||
+                !rb.Registration.Config.ShowCooldownOverlay)
+            {
                 return null;
+            }
 
             if (rb.CooldownOverlay != null)
                 return rb.CooldownOverlay;
@@ -1471,24 +1476,44 @@ namespace ULTRADROID.Core
                 return;
 
             ButtonConfig config = rb.Registration.Config;
+
+            if (rb.LastCooldownCancelVersion != config.CooldownCancelVersion)
+            {
+                rb.LastCooldownCancelVersion = config.CooldownCancelVersion;
+                rb.CooldownWasActive = false;
+                rb.CooldownCompletionReported = true;
+                rb.CooldownDurationAtStart = 0f;
+            }
+
+            if (rb.LastCooldownRequestVersion != config.CooldownRequestVersion)
+            {
+                rb.LastCooldownRequestVersion = config.CooldownRequestVersion;
+                rb.CooldownWasActive = config.IsOnCooldown;
+                rb.CooldownCompletionReported = !config.IsOnCooldown;
+                rb.CooldownDurationAtStart = config.ActiveCooldownDuration;
+            }
+
             bool active = config.IsOnCooldown;
 
-            if (rb.CooldownWasActive &&
-                !active &&
-                !rb.CooldownCompletionReported)
+            if (active)
+            {
+                rb.CooldownWasActive = true;
+                rb.CooldownCompletionReported = false;
+                rb.CooldownDurationAtStart = config.ActiveCooldownDuration;
+                return;
+            }
+
+            if (rb.CooldownWasActive && !rb.CooldownCompletionReported)
             {
                 rb.CooldownCompletionReported = true;
+                rb.CooldownWasActive = false;
+                rb.CooldownDurationAtStart = 0f;
 
                 InvokeSafely(
                     config.Id,
                     "OnCooldownComplete",
                     () => config.OnCooldownComplete?.Invoke());
             }
-
-            if (active)
-                rb.CooldownCompletionReported = false;
-
-            rb.CooldownWasActive = active;
         }
 
         private void CreateLegacyLabel(
@@ -1942,8 +1967,10 @@ namespace ULTRADROID.Core
 
                                 ApplyToggleVisuals(runtimeButton);
 
+                                bool toggledState = config.IsToggled;
+
                                 InvokeSafely(config.Id, "OnToggle", () =>
-                                    config.OnToggle?.Invoke(config.IsToggled));
+                                    config.OnToggle?.Invoke(toggledState));
                             }
                         }
                     }
@@ -2164,6 +2191,9 @@ namespace ULTRADROID.Core
 
             internal bool CooldownWasActive;
             internal bool CooldownCompletionReported;
+            internal float CooldownDurationAtStart;
+            internal int LastCooldownRequestVersion;
+            internal int LastCooldownCancelVersion;
 
             internal bool IsPressed;
             internal bool HoldTriggered;
