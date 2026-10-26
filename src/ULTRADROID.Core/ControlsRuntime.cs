@@ -1270,6 +1270,31 @@ namespace ULTRADROID.Core
             clone.SetActive(true);
         }
 
+        private void ApplyChildVisualScale(RuntimeButton rb, float multiplier)
+        {
+            if (rb?.Control == null)
+                return;
+
+            Transform root = rb.Control.transform;
+
+            for (int i = 0; i < root.childCount; i++)
+            {
+                Transform child = root.GetChild(i);
+
+                if (child == null)
+                    continue;
+
+                if (!rb.VisualBaseScales.TryGetValue(
+                        child, out Vector3 baseScale))
+                {
+                    baseScale = child.localScale;
+                    rb.VisualBaseScales[child] = baseScale;
+                }
+
+                child.localScale = baseScale * multiplier;
+            }
+        }
+
         private void ApplyToggleVisuals(RuntimeButton rb)
         {
             if (rb?.Registration?.Config == null || rb.Control == null)
@@ -1367,7 +1392,7 @@ namespace ULTRADROID.Core
                     envelope);
             }
 
-            buttonObject.transform.localScale = rb.BaseScale * scaleMultiplier;
+            ApplyChildVisualScale(rb, scaleMultiplier);
 
             Image overlay = EnsureCooldownOverlay(rb);
 
@@ -2179,6 +2204,8 @@ namespace ULTRADROID.Core
 
             internal Vector3 BaseScale;
             internal Image CooldownOverlay;
+            internal readonly Dictionary<Transform, Vector3> VisualBaseScales =
+                new Dictionary<Transform, Vector3>();
 
             internal Sprite ToggledOnIconCache;
             internal Sprite ToggledOffIconCache;
