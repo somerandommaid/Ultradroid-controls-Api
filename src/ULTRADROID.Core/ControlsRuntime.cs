@@ -50,11 +50,6 @@ namespace ULTRADROID.Core
         private bool editableControlsRebuildPending;
         private bool rebuildMethodErrorLogged;
 
-        static ControlsRuntimeLogic()
-        {
-            ClassInjector.RegisterTypeInIl2Cpp<ControlsPointerHandler>();
-        }
-
         private static readonly MethodInfo InitEditableControlsMethod =
             typeof(TouchManager).GetMethod(
                 "InitEditableControls",
@@ -1847,65 +1842,6 @@ namespace ULTRADROID.Core
             internal float PressStartedAt;
             internal float NextRepeatAt;
             internal float LastClickAt;
-        }
-    }
-
-    public sealed class ControlsPointerHandler : MonoBehaviour,
-        IPointerDownHandler,
-        IPointerUpHandler,
-        IPointerExitHandler
-    {
-        public Action Pressed;
-        public Action Released;
-        public Action Cancelled;
-
-        private bool isPressed;
-
-        public static void Register()
-        {
-            ClassInjector.RegisterTypeInIl2Cpp<ControlsPointerHandler>();
-        }
-
-        public ControlsPointerHandler(IntPtr ptr) : base(ptr)
-        {
-        }
-
-        public void OnPointerDown(PointerEventData eventData)
-        {
-            if (isPressed)
-                return;
-
-            isPressed = true;
-            Pressed?.Invoke();
-        }
-
-        public void OnPointerUp(PointerEventData eventData)
-        {
-            EndPress();
-        }
-
-        public void OnPointerExit(PointerEventData eventData)
-        {
-            // Keep the press active when the finger moves outside the button.
-            // Pointer-up or component disable ends the press.
-        }
-
-        private void EndPress()
-        {
-            if (!isPressed)
-                return;
-
-            isPressed = false;
-            Released?.Invoke();
-        }
-
-        private void OnDisable()
-        {
-            if (!isPressed)
-                return;
-
-            isPressed = false;
-            Cancelled?.Invoke();
         }
     }
 
