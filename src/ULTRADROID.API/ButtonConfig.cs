@@ -147,39 +147,80 @@ namespace ULTRADROID.API
         
         // Runtime-controlled state
         private float cooldownEndsAt;
+        private float activeCooldownDuration;
+
+        private int cooldownRequestVersion;
+        private int cooldownCancelVersion;
         private int effectRequestVersion;
+        private int flashRequestVersion;
+
         public bool IsOnCooldown =>
             UnityEngine.Time.unscaledTime < cooldownEndsAt;
+
         public float CooldownRemaining =>
-            Mathf.Max(0f, cooldownEndsAt - UnityEngine.Time.unscaledTime);
-        
+            Mathf.Max(
+                0f,
+                cooldownEndsAt - UnityEngine.Time.unscaledTime);
+
+        /// <summary>
+        /// Original duration of the currently active cooldown.
+        /// Returns zero when no cooldown is active.
+        /// </summary>
+        public float ActiveCooldownDuration =>
+            IsOnCooldown ? activeCooldownDuration : 0f;
+
+        internal int CooldownRequestVersion =>
+            cooldownRequestVersion;
+
+        internal int CooldownCancelVersion =>
+            cooldownCancelVersion;
+
         /// <summary>Starts a cooldown, using unscaled time.</summary>
         public void StartCooldown(float duration)
         {
-            duration = float.IsNaN(duration) || float.IsInfinity(duration)
+            duration = float.IsNaN(duration) ||
+                       float.IsInfinity(duration)
                 ? 0f
                 : Mathf.Max(0f, duration);
-            
-            cooldownEndsAt = UnityEngine.Time.unscaledTime + duration;
+
+            activeCooldownDuration = duration;
+            cooldownEndsAt =
+                UnityEngine.Time.unscaledTime + duration;
+
+            cooldownRequestVersion++;
         }
 
         public void StartCooldown()
         {
             StartCooldown(CooldownDuration);
         }
-        
+
         public void CancelCooldown()
         {
+            if (IsOnCooldown)
+                cooldownCancelVersion++;
+
             cooldownEndsAt = 0f;
+            activeCooldownDuration = 0f;
         }
-        
+
         /// <summary>Requests a pulse effect on the next runtime update.</summary>
         public void Pulse()
         {
             effectRequestVersion++;
         }
-        
-        internal int EffectRequestVersion => effectRequestVersion;
+
+        internal int EffectRequestVersion =>
+            effectRequestVersion;
+
+        /// <summary>Requests a flash effect on the next runtime update.</summary>
+        public void Flash()
+        {
+            flashRequestVersion++;
+        }
+
+        internal int FlashRequestVersion =>
+            flashRequestVersion;
         
         public float Rotation { get; set; } = 0f;
 
