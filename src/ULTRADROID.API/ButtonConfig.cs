@@ -107,6 +107,18 @@ namespace ULTRADROID.API
         /// </summary>
         public bool IsToggled { get; set; } = false;
 
+        // Toggle ON visuals
+        public string ToggledOnIconPath { get; set; }
+        public Sprite ToggledOnIcon { get; set; }
+        public bool ApplyToggledOnTint { get; set; } = false;
+        public Color ToggledOnTint { get; set; } = Color.white;
+        
+        // Toggle OFF visuals
+        public string ToggledOffIconPath { get; set; }
+        public Sprite ToggledOffIcon { get; set; }
+        public bool ApplyToggledOffTint { get; set; } = false;
+        public Color ToggledOffTint { get; set; } = Color.white;
+        
         public float Rotation { get; set; } = 0f;
 
         /// <summary>
@@ -220,5 +232,6 @@ namespace ULTRADROID.API
         /// Label position relative to its RectTransform anchors.
         /// </summary>
         public Vector2 LabelPosition { get; set; } = Vector2.zero;
+        
     }
 }
