@@ -8,131 +8,292 @@ using UnityEngine.Events;
 
 namespace ULTRADROID.ExampleMod
 {
-    [BepInPlugin(
-        "somerandommaid.ultradroid.example",
-        "ULTRADROID Example Button",
-        "0.1.0"
-    )]
-    [BepInDependency(
-        ULTRADROIDControls.PluginGuid,
-        BepInDependency.DependencyFlags.HardDependency
-    )]
-    public sealed class ExampleButtonMod : BasePlugin
+[BepInPlugin(
+"somerandommaid.ultradroid.example",
+"ULTRADROID Example Button",
+"0.2.0"
+)]
+[BepInDependency(
+ULTRADROIDControls.PluginGuid,
+BepInDependency.DependencyFlags.HardDependency
+)]
+public sealed class ExampleButtonMod : BasePlugin
+{
+private Action<Scene, LoadSceneMode> sceneLoadedCallback;
+private UnityAction<Scene, LoadSceneMode> sceneLoadedHandler;
+private bool buttonsRegistered;
+
+    private ButtonConfig cooldownConfig;
+    private ButtonConfig effectsConfig;
+
+    public override void Load()
     {
-        private ButtonHandle buttonHandle;
-        private Action<Scene, LoadSceneMode> sceneLoadedCallback;
-        private UnityAction<Scene, LoadSceneMode> sceneLoadedHandler;
-        private bool buttonRegistered;
+        sceneLoadedCallback = OnSceneLoaded;
 
-        public override void Load()
+        sceneLoadedHandler =
+            Il2CppInterop.Runtime.DelegateSupport
+                .ConvertDelegate<UnityAction<Scene, LoadSceneMode>>(
+                    sceneLoadedCallback
+                );
+
+        SceneManager.sceneLoaded += sceneLoadedHandler;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "Bootstrap" || scene.name == "Intro")
+            return;
+
+        if (buttonsRegistered)
+            return;
+
+        buttonsRegistered = true;
+        SceneManager.sceneLoaded -= sceneLoadedHandler;
+
+        RegisterInteractionButton();
+        RegisterCooldownButton();
+        RegisterEffectsButton();
+        RegisterVisualsButton();
+
+        Log.LogInfo(
+            "[ULTRADROID Example] Registered four feature-test buttons."
+        );
+    }
+
+    private void RegisterInteractionButton()
+    {
+        ULTRADROIDControls.AddButton(new ButtonConfig
         {
-            sceneLoadedCallback = OnSceneLoaded;
+            Id = "ULTRADROID.Example.Interaction",
+            Label = "INTERACTION",
 
-            sceneLoadedHandler =
-                Il2CppInterop.Runtime.DelegateSupport
-                    .ConvertDelegate<UnityAction<Scene, LoadSceneMode>>(
-                        sceneLoadedCallback
-                    );
+            Width = 150f,
+            Height = 55f,
+            PositionOffset = new Vector2(-240f, 100f),
+            ScaleMultiplier = 1f,
 
-            SceneManager.sceneLoaded += sceneLoadedHandler;
-        }
+            BackgroundPath = "Background.png",
+            TransparentButton = false,
+            ApplyTint = true,
+            Tint = new Color(0.15f, 0.55f, 1f, 1f),
 
-        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+            IconPath = "ultradroid-demo-icon.png",
+            IconWidth = 42f,
+            IconHeight = 42f,
+            IconPosition = Vector2.zero,
+            IconPreserveAspect = true,
+            IconOpacity = 1f,
+
+            LabelFontSize = 12f,
+            LabelColor = Color.white,
+            LabelAlignment = ButtonLabelAlignment.MiddleCenter,
+            LabelPosition = new Vector2(0f, -35f),
+            LabelOpacity = 1f,
+
+            RoundedCorners = true,
+            CornerRadius = 12f,
+
+            HoldDuration = 0.5f,
+            RepeatInterval = 0.5f,
+            DoubleClickInterval = 0.3f,
+
+            RepeatWhileHeld = true,
+            ToggleMode = true,
+
+            OnClick = () =>
+                Log.LogInfo("[Interaction] CLICK"),
+
+            OnPress = () =>
+                Log.LogInfo("[Interaction] PRESS"),
+
+            OnRelease = () =>
+                Log.LogInfo("[Interaction] RELEASE"),
+
+            OnHold = () =>
+                Log.LogInfo("[Interaction] HOLD"),
+
+            OnRepeat = () =>
+                Log.LogInfo("[Interaction] REPEAT"),
+
+            OnDoubleClick = () =>
+                Log.LogInfo("[Interaction] DOUBLE CLICK"),
+
+            OnToggle = enabled =>
+                Log.LogInfo("[Interaction] TOGGLE: " + enabled)
+        });
+    }
+
+    private void RegisterCooldownButton()
+    {
+        cooldownConfig = new ButtonConfig
         {
-            if (scene.name == "Bootstrap" || scene.name == "Intro")
-                return;
+            Id = "ULTRADROID.Example.Cooldown",
+            Label = "COOLDOWN",
 
-            if (buttonRegistered)
-                return;
+            Width = 150f,
+            Height = 55f,
+            PositionOffset = new Vector2(-80f, 100f),
+            ScaleMultiplier = 1f,
 
-            buttonRegistered = true;
-            SceneManager.sceneLoaded -= sceneLoadedHandler;
+            BackgroundPath = "Background.png",
+            TransparentButton = false,
+            ApplyTint = true,
+            Tint = new Color(1f, 0.55f, 0.12f, 1f),
 
-            buttonHandle = ULTRADROIDControls.AddButton(new ButtonConfig
+            IconPath = "ultradroid-demo-icon.png",
+            IconWidth = 42f,
+            IconHeight = 42f,
+            IconPosition = Vector2.zero,
+            IconPreserveAspect = true,
+
+            LabelFontSize = 12f,
+            LabelColor = Color.white,
+            LabelAlignment = ButtonLabelAlignment.MiddleCenter,
+            LabelPosition = new Vector2(0f, -35f),
+
+            RoundedCorners = true,
+            CornerRadius = 12f,
+
+            CooldownDuration = 3f,
+            ShowCooldownOverlay = true,
+
+            OnClick = () =>
             {
-                Id = "ULTRADROID.Example.Demo",
-                Label = "Test",
-
-                LabelFontSize = 12f,
-                LabelColor = Color.red,
-                LabelAlignment = ButtonLabelAlignment.MiddleCenter,
-                LabelPosition = new Vector2(0f, 30f),
-                LabelOpacity = 0.5f,
-
-                BackgroundPath = "Background.png",
-                TransparentButton = true,
-                IconOpacity = 0.5f,
-
-                RoundedCorners = true,
-                CornerRadius = 20f,
-
-                Width = 100f,
-                Height = 40f,
-                Rotation = 45f,
-
-                IconWidth = 100f,
-                IconHeight = 40f,
-                IconPosition = Vector2.zero,
-                IconPreserveAspect = true,
-                IconPath = "ultradroid-demo-icon.png",
-
-                PositionOffset = new Vector2(120f, 90f),
-                HideBackground = true,
-                ApplyTint = true,
-                ScaleMultiplier = 1f,
-
-                // Interaction settings
-                HoldDuration = 0.5f,
-                RepeatInterval = 0.2f,
-                DoubleClickInterval = 0.3f,
-
-                RepeatWhileHeld = true,
-                ToggleMode = true,
-
-                // Fires when the button is clicked
-                OnClick = () =>
-                {
-                    Log.LogInfo("[ULTRADROID Example] CLICK");
-                },
-
-                // Fires when the press begins
-                OnPress = () =>
-                {
-                    Log.LogInfo("[ULTRADROID Example] PRESS");
-                },
-
-                // Fires when the press ends
-                OnRelease = () =>
-                {
-                    Log.LogInfo("[ULTRADROID Example] RELEASE");
-                },
-
-                // Fires after holding for HoldDuration
-                OnHold = () =>
-                {
-                    Log.LogInfo("[ULTRADROID Example] HOLD");
-                },
-
-                // Repeats while the button remains held
-                OnRepeat = () =>
-                {
-                    Log.LogInfo("[ULTRADROID Example] REPEAT");
-                },
-
-                // Fires when two clicks occur within DoubleClickInterval
-                OnDoubleClick = () =>
-                {
-                    Log.LogInfo("[ULTRADROID Example] DOUBLE CLICK");
-                },
-
-                // Alternates between true and false on successive clicks
-                OnToggle = (enabled) =>
+                if (cooldownConfig.IsOnCooldown)
                 {
                     Log.LogInfo(
-                        "[ULTRADROID Example] TOGGLE: " + enabled
+                        "[Cooldown] Still cooling down: " +
+                        cooldownConfig.CooldownRemaining.ToString("F1") +
+                        " seconds remaining"
                     );
+                    return;
                 }
-            });
-        }
+
+                cooldownConfig.StartCooldown(3f);
+                Log.LogInfo("[Cooldown] Started 3-second cooldown.");
+            },
+
+            OnCooldownComplete = () =>
+                Log.LogInfo("[Cooldown] COMPLETE")
+        };
+
+        ULTRADROIDControls.AddButton(cooldownConfig);
     }
+
+    private void RegisterEffectsButton()
+    {
+        effectsConfig = new ButtonConfig
+        {
+            Id = "ULTRADROID.Example.Effects",
+            Label = "EFFECTS",
+
+            Width = 150f,
+            Height = 55f,
+            PositionOffset = new Vector2(80f, 100f),
+            ScaleMultiplier = 1f,
+
+            BackgroundPath = "Background.png",
+            TransparentButton = false,
+            ApplyTint = true,
+            Tint = new Color(0.7f, 0.25f, 1f, 1f),
+
+            IconPath = "ultradroid-demo-icon.png",
+            IconWidth = 42f,
+            IconHeight = 42f,
+            IconPosition = Vector2.zero,
+            IconPreserveAspect = true,
+
+            LabelFontSize = 12f,
+            LabelColor = Color.white,
+            LabelAlignment = ButtonLabelAlignment.MiddleCenter,
+            LabelPosition = new Vector2(0f, -35f),
+
+            RoundedCorners = true,
+            CornerRadius = 12f,
+
+            CooldownDuration = 5f,
+            ShowCooldownOverlay = true,
+
+            OnClick = () =>
+            {
+                if (effectsConfig.IsOnCooldown)
+                {
+                    effectsConfig.CancelCooldown();
+                    Log.LogInfo("[Effects] Cooldown cancelled.");
+                }
+                else
+                {
+                    effectsConfig.StartCooldown(5f);
+                    Log.LogInfo("[Effects] Started 5-second cooldown.");
+                }
+
+                effectsConfig.Pulse();
+                effectsConfig.Flash();
+
+                Log.LogInfo("[Effects] Pulse and flash requested.");
+            },
+
+            OnCooldownComplete = () =>
+                Log.LogInfo("[Effects] Cooldown completed.")
+        };
+
+        ULTRADROIDControls.AddButton(effectsConfig);
+    }
+
+    private void RegisterVisualsButton()
+    {
+        ULTRADROIDControls.AddButton(new ButtonConfig
+        {
+            Id = "ULTRADROID.Example.Visuals",
+            Label = "VISUALS",
+
+            Width = 150f,
+            Height = 55f,
+            PositionOffset = new Vector2(240f, 100f),
+            ScaleMultiplier = 1f,
+
+            BackgroundPath = "Background.png",
+            TransparentButton = false,
+            ApplyTint = true,
+            Tint = new Color(0.1f, 0.8f, 0.45f, 1f),
+
+            IconPath = "ultradroid-demo-icon.png",
+            IconWidth = 42f,
+            IconHeight = 42f,
+            IconPosition = Vector2.zero,
+            IconPreserveAspect = true,
+            IconOpacity = 0.65f,
+
+            LabelFontSize = 12f,
+            LabelColor = Color.yellow,
+            LabelAlignment = ButtonLabelAlignment.MiddleCenter,
+            LabelPosition = new Vector2(0f, -35f),
+            LabelOpacity = 0.8f,
+
+            RoundedCorners = true,
+            CornerRadius = 20f,
+            Rotation = 5f,
+
+            ToggleMode = true,
+
+            ToggledOnIconPath = "ultradroid-demo-icon.png",
+            ToggledOffIconPath = "ultradroid-demo-icon.png",
+
+            ApplyToggledOnTint = true,
+            ToggledOnTint = Color.yellow,
+
+            ApplyToggledOffTint = true,
+            ToggledOffTint = Color.white,
+
+            OnClick = () =>
+                Log.LogInfo("[Visuals] Clicked."),
+
+            OnToggle = enabled =>
+                Log.LogInfo(
+                    "[Visuals] Toggle state: " + enabled
+                )
+        });
+    }
+}
+
 }
